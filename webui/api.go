@@ -30,6 +30,7 @@ func (s *Server) handleGetRules(c echo.Context) error {
 
 func (s *Server) handleAddRule(c echo.Context) error {
 	var body struct {
+		SourceHost string `json:"sourceHost"`
 		LocalPort  int    `json:"localPort"`
 		TargetHost string `json:"targetHost"`
 		TargetPort int    `json:"targetPort"`
@@ -38,7 +39,7 @@ func (s *Server) handleAddRule(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
-	if err := s.app.AddRule(body.LocalPort, body.TargetHost, body.TargetPort); err != nil {
+	if err := s.app.AddRule(body.SourceHost, body.LocalPort, body.TargetHost, body.TargetPort); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 

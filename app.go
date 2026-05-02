@@ -58,7 +58,7 @@ func (a *App) GetRules() []config.ForwardRule {
 	return a.mgr.GetConfig().Rules
 }
 
-func (a *App) AddRule(localPort int, targetHost string, targetPort int) error {
+func (a *App) AddRule(sourceHost string, localPort int, targetHost string, targetPort int) error {
 	if localPort < 1024 || localPort > 65535 {
 		return fmt.Errorf("local port must be between 1024 and 65535")
 	}
@@ -68,9 +68,13 @@ func (a *App) AddRule(localPort int, targetHost string, targetPort int) error {
 	if targetHost == "" {
 		return fmt.Errorf("target host cannot be empty")
 	}
+	if sourceHost == "" {
+		sourceHost = "0.0.0.0"
+	}
 
 	rule := config.ForwardRule{
 		ID:         uuid.New().String(),
+		SourceHost: sourceHost,
 		LocalPort:  localPort,
 		TargetHost: targetHost,
 		TargetPort: targetPort,

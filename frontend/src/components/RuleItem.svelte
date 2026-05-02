@@ -46,7 +46,7 @@
     <span class="w-3 h-3 rounded-full flex-shrink-0 {rule.enabled && running ? 'bg-green-500' : 'bg-gray-300'}"></span>
     <div class="min-w-0">
       <div class="font-mono text-sm">
-        :{rule.localPort} <span class="text-gray-400">&rarr;</span> {rule.targetHost}:{rule.targetPort}
+        {rule.sourceHost || '0.0.0.0'}:{rule.localPort} <span class="text-gray-400">&rarr;</span> {rule.targetHost}:{rule.targetPort}
       </div>
       <div class="text-xs text-gray-400">
         {rule.enabled && running ? '运行中' : '已停止'}

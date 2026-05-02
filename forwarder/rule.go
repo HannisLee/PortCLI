@@ -42,7 +42,10 @@ func (r *RuleState) Start() error {
 		return fmt.Errorf("rule %s is already running", r.rule.ID)
 	}
 
-	addr := fmt.Sprintf(":%d", r.rule.LocalPort)
+	addr := fmt.Sprintf("%s:%d", r.rule.SourceHost, r.rule.LocalPort)
+	if r.rule.SourceHost == "" || r.rule.SourceHost == "*" {
+		addr = fmt.Sprintf(":%d", r.rule.LocalPort)
+	}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %d: %w", r.rule.LocalPort, err)

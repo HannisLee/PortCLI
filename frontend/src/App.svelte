@@ -1,7 +1,7 @@
 <script lang="ts">
   import './app.css'
   import { onMount } from 'svelte'
-  import { api, type ForwardRule } from './lib/api'
+  import { api, type ForwardRule, type WebUIConfig } from './lib/api'
   import RuleForm from './components/RuleForm.svelte'
   import RuleItem from './components/RuleItem.svelte'
   import LogViewer from './components/LogViewer.svelte'
@@ -13,6 +13,7 @@
   let logRuleId = ''
   let loading = true
   let needsAuth = false
+  let webuiConfig: WebUIConfig | null = null
 
   async function refresh() {
     try {
@@ -31,6 +32,14 @@
     }
   }
 
+  async function loadWebUIConfig() {
+    try {
+      webuiConfig = await api.getWebUIConfig()
+    } catch {
+      // ignore
+    }
+  }
+
   function handleFormSubmit() {
     showForm = false
     refresh()
@@ -40,7 +49,16 @@
     logRuleId = id
   }
 
-  onMount(refresh)
+  function openWebUI() {
+    if (webuiConfig) {
+      window.open(`http://localhost:${webuiConfig.port}`, '_blank')
+    }
+  }
+
+  onMount(() => {
+    refresh()
+    loadWebUIConfig()
+  })
 </script>
 
 {#if needsAuth && !api.isWailsMode}
@@ -50,8 +68,19 @@
     <header class="bg-white border-b px-6 py-4 flex items-center justify-between flex-shrink-0">
       <h1 class="text-lg font-semibold text-gray-800">PortHannis</h1>
       <div class="flex items-center gap-3">
-        {#if !api.isWailsMode}
-          <span class="text-xs text-gray-400">WebUI</span>
+        {#if webuiConfig && webuiConfig.enabled}
+          {#if api.isWailsMode}
+            <button
+              on:click={openWebUI}
+              class="px-3 py-1.5 text-xs text-blue-600 border border-blue-200 rounded hover:bg-blue-50 flex items-center gap-1"
+              title="在浏览器中打开 WebUI"
+            >
+              <span class="w-2 h-2 bg-green-500 rounded-full inline-block"></span>
+              WebUI :{webuiConfig.port}
+            </button>
+          {:else}
+            <span class="text-xs text-gray-400">WebUI :{webuiConfig.port}</span>
+          {/if}
         {/if}
         <button
           on:click={() => (showForm = true)}

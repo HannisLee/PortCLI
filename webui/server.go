@@ -22,7 +22,7 @@ type Server struct {
 // AppBindings 主应用提供的回调集合，避免循环依赖
 type AppBindings struct {
 	GetRules    func() []config.ForwardRule
-	AddRule     func(localPort int, targetHost string, targetPort int) error
+	AddRule     func(sourceHost string, localPort int, targetHost string, targetPort int) error
 	DeleteRule  func(id string) error
 	ToggleRule  func(id string, enabled bool) error
 	GetLogs     func(ruleID string, limit int) []config.LogEntry

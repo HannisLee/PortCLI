@@ -4,6 +4,7 @@
 
   const dispatch = createEventDispatcher<{ submit: void; cancel: void }>()
 
+  let sourceHost = '0.0.0.0'
   let localPort = ''
   let targetHost = ''
   let targetPort = ''
@@ -11,6 +12,9 @@
   let submitting = false
 
   function validate(): string | null {
+    if (!sourceHost.trim()) {
+      return '来源地址不能为空'
+    }
     const lp = parseInt(localPort)
     if (isNaN(lp) || lp < 1024 || lp > 65535) {
       return '本地端口范围：1024-65535'
@@ -34,7 +38,7 @@
     }
     submitting = true
     try {
-      await api.addRule(parseInt(localPort), targetHost.trim(), parseInt(targetPort))
+      await api.addRule(sourceHost.trim(), parseInt(localPort), targetHost.trim(), parseInt(targetPort))
       dispatch('submit')
     } catch (e: any) {
       error = e?.message || String(e)
@@ -57,6 +61,16 @@
     {/if}
 
     <div class="space-y-3">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">来源地址</label>
+        <input
+          type="text"
+          bind:value={sourceHost}
+          placeholder="0.0.0.0（全部接口）"
+          class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <p class="text-xs text-gray-400 mt-1">本地监听地址，0.0.0.0 表示接受所有来源</p>
+      </div>
       <div>
         <label class="block text-sm text-gray-600 mb-1">本地端口</label>
         <input

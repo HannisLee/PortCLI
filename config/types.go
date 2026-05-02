@@ -5,6 +5,7 @@ import "time"
 // ForwardRule 单条端口转发规则
 type ForwardRule struct {
 	ID         string    `json:"id"`
+	SourceHost string    `json:"sourceHost"` // 本地监听地址，空或 "0.0.0.0" 表示全部接口
 	LocalPort  int       `json:"localPort"`
 	TargetHost string    `json:"targetHost"`
 	TargetPort int       `json:"targetPort"`

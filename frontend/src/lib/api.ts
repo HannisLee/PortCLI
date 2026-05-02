@@ -1,8 +1,9 @@
 // 检测运行模式：Wails 桌面 or 浏览器 WebUI
-const isWails = typeof window !== 'undefined' && !!(window as any).__WAILS__
+const isWails = typeof window !== 'undefined' && !!(window as any).wails
 
 export interface ForwardRule {
   id: string
+  sourceHost: string
   localPort: number
   targetHost: string
   targetPort: number
@@ -29,9 +30,9 @@ async function wailsGetRules(): Promise<ForwardRule[]> {
   const { GetRules } = await import('../../wailsjs/go/main/App')
   return GetRules()
 }
-async function wailsAddRule(localPort: number, targetHost: string, targetPort: number): Promise<void> {
+async function wailsAddRule(sourceHost: string, localPort: number, targetHost: string, targetPort: number): Promise<void> {
   const { AddRule } = await import('../../wailsjs/go/main/App')
-  return AddRule(localPort, targetHost, targetPort)
+  return AddRule(sourceHost, localPort, targetHost, targetPort)
 }
 async function wailsDeleteRule(id: string): Promise<void> {
   const { DeleteRule } = await import('../../wailsjs/go/main/App')
@@ -53,6 +54,14 @@ async function wailsGetStatus(): Promise<{ [key: string]: boolean }> {
   const { GetStatus } = await import('../../wailsjs/go/main/App')
   return GetStatus()
 }
+async function wailsGetWebUIConfig(): Promise<WebUIConfig> {
+  const { GetWebUIConfig } = await import('../../wailsjs/go/main/App')
+  return GetWebUIConfig()
+}
+async function wailsUpdateWebUIConfig(enabled: boolean, port: number, password: string): Promise<void> {
+  const { UpdateWebUIConfig } = await import('../../wailsjs/go/main/App')
+  return UpdateWebUIConfig(enabled, port, password)
+}
 
 // ============ HTTP 模式 ============
 async function httpRequest<T>(path: string, opts?: RequestInit): Promise<T> {
@@ -73,10 +82,10 @@ async function httpRequest<T>(path: string, opts?: RequestInit): Promise<T> {
 function httpGetRules(): Promise<ForwardRule[]> {
   return httpRequest<ForwardRule[]>('/api/rules')
 }
-function httpAddRule(localPort: number, targetHost: string, targetPort: number): Promise<void> {
+function httpAddRule(sourceHost: string, localPort: number, targetHost: string, targetPort: number): Promise<void> {
   return httpRequest<void>('/api/rules', {
     method: 'POST',
-    body: JSON.stringify({ localPort, targetHost, targetPort }),
+    body: JSON.stringify({ sourceHost, localPort, targetHost, targetPort }),
   })
 }
 function httpDeleteRule(id: string): Promise<void> {
@@ -126,10 +135,10 @@ export const api = isWails
       getLogs: wailsGetLogs,
       clearLogs: wailsClearLogs,
       getStatus: wailsGetStatus,
+      getWebUIConfig: wailsGetWebUIConfig,
+      updateWebUIConfig: wailsUpdateWebUIConfig,
       login: async (_password: string) => {},
       logout: async () => {},
-      getWebUIConfig: async () => ({ enabled: true, port: 18080, password: '' }) as WebUIConfig,
-      updateWebUIConfig: async (_cfg: Partial<WebUIConfig>) => {},
       isWailsMode: true as const,
     }
   : {

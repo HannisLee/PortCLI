@@ -3,6 +3,7 @@
 
 export interface ForwardRule {
   id: string
+  sourceHost: string
   localPort: number
   targetHost: string
   targetPort: number
@@ -18,10 +19,18 @@ export interface LogEntry {
   status: string
 }
 
-export function AddRule(arg1: number, arg2: string, arg3: number): Promise<void>;
+export interface WebUIConfig {
+  enabled: boolean
+  port: number
+  password: string
+}
+
+export function AddRule(arg1: string, arg2: number, arg3: string, arg4: number): Promise<void>;
 export function ClearLogs(arg1: string): Promise<void>;
 export function DeleteRule(arg1: string): Promise<void>;
 export function GetLogs(arg1: string, arg2: number): Promise<LogEntry[]>;
 export function GetRules(): Promise<ForwardRule[]>;
 export function GetStatus(): Promise<{ [key: string]: boolean }>;
+export function GetWebUIConfig(): Promise<WebUIConfig>;
 export function ToggleRule(arg1: string, arg2: boolean): Promise<void>;
+export function UpdateWebUIConfig(arg1: boolean, arg2: number, arg3: string): Promise<void>;
