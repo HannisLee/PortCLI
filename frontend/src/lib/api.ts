@@ -1,5 +1,8 @@
 // 检测运行模式：Wails 桌面 or 浏览器 WebUI
-const isWails = typeof window !== 'undefined' && !!(window as any).wails
+// 运行时动态检测，避免模块加载时 Wails runtime 尚未注入的问题
+function checkIsWails(): boolean {
+  return typeof window !== 'undefined' && !!(window as any)['go']?.['main']?.['App']
+}
 
 export interface ForwardRule {
   id: string
@@ -126,32 +129,24 @@ function httpUpdateWebUIConfig(cfg: Partial<WebUIConfig>): Promise<void> {
 }
 
 // ============ 统一导出 ============
-export const api = isWails
-  ? {
-      getRules: wailsGetRules,
-      addRule: wailsAddRule,
-      deleteRule: wailsDeleteRule,
-      toggleRule: wailsToggleRule,
-      getLogs: wailsGetLogs,
-      clearLogs: wailsClearLogs,
-      getStatus: wailsGetStatus,
-      getWebUIConfig: wailsGetWebUIConfig,
-      updateWebUIConfig: wailsUpdateWebUIConfig,
-      login: async (_password: string) => {},
-      logout: async () => {},
-      isWailsMode: true as const,
-    }
-  : {
-      getRules: httpGetRules,
-      addRule: httpAddRule,
-      deleteRule: httpDeleteRule,
-      toggleRule: httpToggleRule,
-      getLogs: httpGetLogs,
-      clearLogs: httpClearLogs,
-      getStatus: httpGetStatus,
-      login: httpLogin,
-      logout: httpLogout,
-      getWebUIConfig: httpGetWebUIConfig,
-      updateWebUIConfig: httpUpdateWebUIConfig,
-      isWailsMode: false as const,
-    }
+// 每次调用时动态检测运行模式，避免初始化时序问题
+function wailsWrap<T>(fn: () => Promise<T>): () => Promise<T> {
+  return () => checkIsWails() ? fn() : fn()
+}
+
+export const api = {
+  getRules: () => checkIsWails() ? wailsGetRules() : httpGetRules(),
+  addRule: (sourceHost: string, localPort: number, targetHost: string, targetPort: number) =>
+    checkIsWails() ? wailsAddRule(sourceHost, localPort, targetHost, targetPort) : httpAddRule(sourceHost, localPort, targetHost, targetPort),
+  deleteRule: (id: string) => checkIsWails() ? wailsDeleteRule(id) : httpDeleteRule(id),
+  toggleRule: (id: string, enabled: boolean) => checkIsWails() ? wailsToggleRule(id, enabled) : httpToggleRule(id, enabled),
+  getLogs: (ruleId: string, limit: number) => checkIsWails() ? wailsGetLogs(ruleId, limit) : httpGetLogs(ruleId, limit),
+  clearLogs: (ruleId: string) => checkIsWails() ? wailsClearLogs(ruleId) : httpClearLogs(ruleId),
+  getStatus: () => checkIsWails() ? wailsGetStatus() : httpGetStatus(),
+  getWebUIConfig: () => checkIsWails() ? wailsGetWebUIConfig() : httpGetWebUIConfig(),
+  updateWebUIConfig: (enabled: boolean, port: number, password: string) =>
+    checkIsWails() ? wailsUpdateWebUIConfig(enabled, port, password) : httpUpdateWebUIConfig({ enabled, port, password }),
+  login: (password: string) => checkIsWails() ? Promise.resolve() : httpLogin(password),
+  logout: () => checkIsWails() ? Promise.resolve() : httpLogout(),
+  get isWailsMode() { return checkIsWails() },
+}
