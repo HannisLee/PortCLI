@@ -15,14 +15,14 @@
 
 ### Windows
 
-从 [Releases](https://github.com/xxx/porthannis/releases) 下载 **PortHannis-windows-portable.exe**，双击运行。
+从 [Releases](https://github.com/HannisLee/PortHannis/releases) 下载 **PortHannis-windows-portable.exe**，双击运行。
 浏览器自动打开 Web 管理界面，`port.json` 首次运行自动创建。
 
 ### Ubuntu / Debian
 
 **方式一：下载预编译二进制**
 
-从 [Releases](https://github.com/xxx/porthannis/releases) 下载 `porthannis`：
+从 [Releases](https://github.com/HannisLee/PortHannis/releases) 下载 `porthannis`：
 
 ```bash
 chmod +x porthannis
@@ -36,7 +36,7 @@ chmod +x porthannis
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # 克隆并运行
-git clone https://github.com/xxx/porthannis.git
+git clone https://github.com/HannisLee/PortHannis.git
 cd porthannis
 cargo run --release -p porthannis-server
 ```
@@ -46,7 +46,7 @@ cargo run --release -p porthannis-server
 ### macOS / 其他平台
 
 ```bash
-git clone https://github.com/xxx/porthannis.git
+git clone https://github.com/HannisLee/PortHannis.git
 cd porthannis
 cargo run --release -p porthannis-server
 ```

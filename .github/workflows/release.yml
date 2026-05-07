@@ -92,7 +92,7 @@ jobs:
 
           或从源码运行：
           ```bash
-          git clone https://github.com/xxx/porthannis.git
+          git clone https://github.com/HannisLee/PortHannis.git
           cd porthannis
           cargo run --release -p porthannis-server
           ```
