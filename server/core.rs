@@ -70,6 +70,15 @@ fn default_enabled() -> bool {
     true
 }
 
+/// CLI modify 命令的部分更新（所有字段可选）
+pub struct PartialUpdate {
+    pub name: Option<String>,
+    pub source_port: Option<u16>,
+    pub target_address: Option<String>,
+    pub target_port: Option<u16>,
+    pub enabled: Option<bool>,
+}
+
 /// 条目状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -358,7 +367,13 @@ pub struct ConfigStore {
 
 impl ConfigStore {
     pub fn load() -> Result<Self, CoreError> {
-        let path = PathBuf::from("port.json");
+        let exe_dir = std::env::current_exe()
+            .map(|p| p.parent().unwrap_or(Path::new(".")).to_path_buf())
+            .unwrap_or_else(|_| PathBuf::from("."));
+        Self::load_from(exe_dir.join("port.json"))
+    }
+
+    pub fn load_from(path: PathBuf) -> Result<Self, CoreError> {
         let data = if path.exists() {
             let content = fs::read_to_string(&path)?;
             serde_json::from_str(&content)?
@@ -444,6 +459,53 @@ impl ConfigStore {
             .ok_or_else(|| CoreError::NotFound(id.to_string()))?;
         let index = self.data.entries.iter().position(|e| e.id == id).unwrap();
         Ok(self.data.entries.remove(index))
+    }
+
+    pub fn update_entry_partial(
+        &mut self,
+        id: &str,
+        updates: PartialUpdate,
+    ) -> Result<ForwardingEntry, CoreError> {
+        let entry = self
+            .find_entry(id)
+            .ok_or_else(|| CoreError::NotFound(id.to_string()))?
+            .clone();
+
+        let index = self.data.entries.iter().position(|e| e.id == id).unwrap();
+        let mut updated = entry.clone();
+
+        if let Some(name) = updates.name {
+            if name.trim().is_empty() {
+                return Err(CoreError::Validation("名称不能为空".into()));
+            }
+            updated.name = name;
+        }
+        if let Some(source_port) = updates.source_port {
+            if source_port == 0 {
+                return Err(CoreError::Validation("端口必须在 1-65535 之间".into()));
+            }
+            updated.source_port = source_port;
+        }
+        if let Some(target_address) = updates.target_address {
+            if target_address.trim().is_empty() {
+                return Err(CoreError::Validation("目标地址不能为空".into()));
+            }
+            updated.target_address = target_address;
+        }
+        if let Some(target_port) = updates.target_port {
+            if target_port == 0 {
+                return Err(CoreError::Validation("端口必须在 1-65535 之间".into()));
+            }
+            updated.target_port = target_port;
+        }
+        if let Some(enabled) = updates.enabled {
+            updated.enabled = enabled;
+        }
+
+        updated.updated_at = Utc::now();
+        self.data.entries[index] = updated.clone();
+        self.save()?;
+        Ok(updated)
     }
 }
 
