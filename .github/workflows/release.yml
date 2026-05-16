@@ -9,7 +9,7 @@ env:
 
 jobs:
   build-windows:
-    name: Build Windows (PortHannis-windows-portable.exe)
+    name: Build Windows (GUI)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,20 +23,20 @@ jobs:
       - name: Build Tauri GUI
         run: cargo build --release -p porthannis-gui
 
-      - name: Rename artifact
+      - name: Prepare artifact
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path upload | Out-Null
-          Copy-Item target/release/porthannis-gui.exe upload/PortHannis-windows-portable.exe
+          Copy-Item target/release/porthannis-gui.exe upload/PortHannis.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-artifact
-          path: upload/PortHannis-windows-portable.exe
+          path: upload/PortHannis.exe
 
   build-linux:
-    name: Build Linux (headless)
+    name: Build Linux (CLI)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,19 +47,14 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
-      - name: Build headless server
+      - name: Build CLI
         run: cargo build --release -p porthannis-server
-
-      - name: Organize artifact
-        run: |
-          mkdir -p upload
-          cp target/release/porthannis upload/porthannis
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-artifact
-          path: upload/porthannis
+          path: target/release/porthannis
 
   create-release:
     name: Create GitHub Release
@@ -79,23 +74,19 @@ jobs:
           ## PortHannis ${{ github.ref_name }}
 
           ### Windows
-          下载 **PortHannis-windows-portable.exe**，双击运行即可。
-          浏览器会自动打开 Web 管理界面，配置文件 `port.json` 首次运行时自动创建。
+          下载 **PortHannis.exe**，双击运行即可打开 GUI 管理界面。
 
           ### Linux / Ubuntu
-          下载 `porthannis` 二进制文件：
+          下载 `porthannis`，终端命令行管理端口转发：
           ```bash
           chmod +x porthannis
-          ./porthannis
+          ./porthannis list                    # 查看转发条目
+          ./porthannis add -n "MySQL" -s 3306 -a 10.0.0.1 -t 3306
+          ./porthannis start <ID>              # 启动转发
+          ./porthannis serve                   # 启动 Web 管理界面
           ```
-          浏览器自动打开 `http://127.0.0.1:7777`。
 
-          或从源码运行：
-          ```bash
-          git clone https://github.com/HannisLee/PortHannis.git
-          cd porthannis
-          cargo run --release -p porthannis-server
-          ```
+          配置文件 `port.json` 首次运行时自动创建于用户主目录。
           EOF
 
       - name: Create Release
@@ -103,5 +94,5 @@ jobs:
         with:
           body_path: release-notes.md
           files: |
-            PortHannis-windows-portable.exe
+            PortHannis.exe
             porthannis
