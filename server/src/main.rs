@@ -88,6 +88,24 @@ enum Commands {
         enabled: Option<bool>,
     },
 
+    /// 删除转发条目（如正在转发则先自动停止）
+    Delete {
+        /// 条目 ID
+        id: String,
+    },
+
+    /// 启动指定条目的转发
+    Start {
+        /// 条目 ID
+        id: String,
+    },
+
+    /// 停止指定条目的转发
+    Stop {
+        /// 条目 ID
+        id: String,
+    },
+
     /// 启动 Web 管理界面
     Serve {
         /// 监听端口
@@ -150,6 +168,9 @@ fn main() -> anyhow::Result<()> {
         }) => {
             run_server(host, port, no_open)?;
         }
+        Some(Commands::Delete { id }) => cmd_delete(id)?,
+        Some(Commands::Start { id }) => cmd_start(id)?,
+        Some(Commands::Stop { id }) => cmd_stop(id)?,
     }
 
     Ok(())
@@ -273,6 +294,36 @@ fn cmd_modify(
     };
     let entry = store.update_entry_partial(&id, updates)?;
     println!("已更新条目: {} (ID: {})", entry.name, entry.id);
+    Ok(())
+}
+
+#[tokio::main]
+async fn cmd_delete(id: String) -> anyhow::Result<()> {
+    let manager = ProxyManager::new().await?;
+    let status = manager.get_status(&id).await;
+    if matches!(status, Ok(core::EntryStatus::Running)) {
+        println!("条目正在转发中，先停止...");
+        manager.stop_entry(&id).await?;
+    }
+    let mut config = manager.config.write().await;
+    let entry = config.remove_entry(&id)?;
+    println!("已删除条目: {} (ID: {})", entry.name, entry.id);
+    Ok(())
+}
+
+#[tokio::main]
+async fn cmd_start(id: String) -> anyhow::Result<()> {
+    let manager = ProxyManager::new().await?;
+    let status = manager.start_entry(&id).await?;
+    println!("已启动转发: {} (状态: {:?})", id, status);
+    Ok(())
+}
+
+#[tokio::main]
+async fn cmd_stop(id: String) -> anyhow::Result<()> {
+    let manager = ProxyManager::new().await?;
+    let status = manager.stop_entry(&id).await?;
+    println!("已停止转发: {} (状态: {:?})", id, status);
     Ok(())
 }
 

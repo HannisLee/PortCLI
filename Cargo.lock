@@ -2591,6 +2591,7 @@ dependencies = [
  "chrono",
  "clap",
  "comfy-table",
+ "dirs",
  "opener",
  "serde",
  "serde_json",

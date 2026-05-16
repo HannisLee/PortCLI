@@ -25,3 +25,4 @@ anyhow.workspace = true
 opener.workspace = true
 clap.workspace = true
 comfy-table.workspace = true
+dirs.workspace = true

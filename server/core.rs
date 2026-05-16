@@ -368,10 +368,8 @@ pub struct ConfigStore {
 
 impl ConfigStore {
     pub fn load() -> Result<Self, CoreError> {
-        let exe_dir = std::env::current_exe()
-            .map(|p| p.parent().unwrap_or(Path::new(".")).to_path_buf())
-            .unwrap_or_else(|_| PathBuf::from("."));
-        Self::load_from(exe_dir.join("port.json"))
+        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+        Self::load_from(home.join("port.json"))
     }
 
     pub fn load_from(path: PathBuf) -> Result<Self, CoreError> {
@@ -459,7 +457,9 @@ impl ConfigStore {
             .find_entry(id)
             .ok_or_else(|| CoreError::NotFound(id.to_string()))?;
         let index = self.data.entries.iter().position(|e| e.id == id).unwrap();
-        Ok(self.data.entries.remove(index))
+        let entry = self.data.entries.remove(index);
+        self.save()?;
+        Ok(entry)
     }
 
     pub fn update_entry_partial(
@@ -734,7 +734,7 @@ struct LoggerHandle {
 
 /// 代理管理器
 pub struct ProxyManager {
-    config: Arc<RwLock<ConfigStore>>,
+    pub config: Arc<RwLock<ConfigStore>>,
     pub proxies: RwLock<HashMap<String, ProxyHandle>>,
     loggers: RwLock<HashMap<String, LoggerHandle>>,
 }

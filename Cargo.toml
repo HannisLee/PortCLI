@@ -38,6 +38,7 @@ comfy-table = "7"
 anyhow = "1"
 opener = "0.7"
 rust-embed = "8"
+dirs = "6"
 
 # tauri
 tauri = { version = "2", features = [] }

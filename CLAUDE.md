@@ -1,57 +1,59 @@
 # CLAUDE.md
 
-PortHannis — 轻量级端口转发管理器，Rust 核心 + React WebUI。
+PortHannis — 轻量级端口转发管理器，Rust 核心 + CLI + 内嵌 WebUI。
 
 ## 项目结构
 
 ```
-port-hannis/
-├── port.json                # 配置文件（所有端口转发信息）
+PortHannis/
 ├── Cargo.toml               # Rust workspace
-├── server/                  # Rust HTTP 服务器 + TCP 转发核心
+├── server/
 │   ├── core.rs              # TCP 转发核心（单文件，所有核心逻辑）
-│   ├── src/main.rs          # Axum HTTP API
+│   ├── web.html             # 内嵌 WebUI（单 HTML 文件）
+│   ├── src/main.rs          # CLI 入口 + HTTP API 服务器
 │   └── Cargo.toml
-├── frontend/                # React Web UI（开发中）
-├── gui/                     # Tauri 桌面应用（开发中）
-└── logs/                    # 日志目录（运行时生成）
+├── gui/                     # Tauri 桌面应用
+│   ├── src/main.rs          # Tauri 入口
+│   └── tauri.conf.json
+└── README.md
+```
+
+## 配置文件
+
+`port.json` 位于用户 home 目录：
+- Windows: `C:\Users\<用户名>\port.json`
+- Linux/macOS: `~/port.json`
+
+首次运行自动创建。
+
+## CLI 命令
+
+```
+porthannis list [-v, --verbose]           # 列出条目（-v 显示全部字段）
+porthannis add -n <名称> -s <源端口> [-a <目标地址>] -t <目标端口> [--source-address <地址>]
+porthannis modify <ID> [--name/--source-port/--source-address/--target-address/--target-port/--enabled]
+porthannis delete <ID>                    # 安全删除（自动停止转发）
+porthannis start <ID>                     # 启动转发
+porthannis stop <ID>                      # 停止转发
+porthannis serve [-p <端口>] [--host <地址>] [--no-open]
 ```
 
 ## 核心文件说明
 
-### server/core.rs
-包含所有 TCP 转发核心逻辑的单文件（~800 行）：
-- **数据结构**：`ForwardingEntry`, `EntryStatus`, `LogMessage`
+### server/core.rs (~900 行)
+- **数据结构**：`ForwardingEntry`, `EntryStatus`, `EntryRequest`, `PartialUpdate`, `LogMessage`
 - **TCP 转发**：`TcpProxy` - 基于 tokio 的异步 TCP 双向转发
-- **配置管理**：`ConfigStore` - 读写 `port.json`
+- **配置管理**：`ConfigStore` - 读写 `port.json`（路径通过 `dirs::home_dir()`）
 - **日志轮转**：`EntryLogger` - 1MB × 5 文件轮转
 - **生命周期**：`ProxyManager` - 启动/停止/查询转发条目
 - **API 处理函数**：所有 HTTP 端点的实现
 
 ### server/src/main.rs
-HTTP API 服务器：
-- Axum 路由配置
-- 静态文件服务（rust-embed 嵌入 frontend/dist）
-- 浏览器自动打开（7777 端口）
-
-## 快速开始
-
-### 运行服务器
-```bash
-# 直接运行
-run.bat
-
-# 或使用 cargo
-cargo run -p porthannis-server
-```
-
-服务器将在 `http://127.0.0.1:7777` 启动，浏览器会自动打开。
-
-### 构建发布版本
-```bash
-cargo build --release -p porthannis-server
-# 可执行文件: target/release/porthannis.exe
-```
+CLI 分发入口 + HTTP API 服务器：
+- clap 命令行解析（list/add/modify/delete/start/stop/serve）
+- list/add/modify 为同步函数，直接操作 ConfigStore
+- delete/start/stop 为异步函数（`#[tokio::main]`），通过 ProxyManager 操作
+- serve 启动 Axum HTTP 服务器 + 内嵌 WebUI
 
 ## API 端点
 
@@ -81,7 +83,9 @@ cargo build --release -p porthannis-server
       "target_address": "192.168.3.11",
       "target_port": 80,
       "enabled": true,
-      "log_directory": "logs/example"
+      "log_directory": "logs/example",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   ]
 }
@@ -91,36 +95,35 @@ cargo build --release -p porthannis-server
 
 | 组件 | 技术 |
 |------|------|
+| CLI | clap 4 (derive) |
+| 表格输出 | comfy-table 7 |
+| 目录路径 | dirs 6 |
 | HTTP API | Axum 0.8 |
 | TCP 转发 | tokio + tokio-util |
 | 序列化 | serde + serde_json |
 | 日志 | tracing |
-| 嵌入前端 | rust-embed |
+| 桌面应用 | Tauri 2 |
+
+## 快速开始
+
+```bash
+# 开发运行
+cargo run -p porthannis-server -- list
+
+# 构建发布版本
+cargo build --release -p porthannis-server
+# 二进制: target/release/porthannis (或 .exe)
+```
 
 ## 日志系统
 
 每个转发条目都有独立的日志目录：
 - `logs/{entry_name}/current.log` - 当前日志
-- `logs/{entry_name}/current.log.1` - 历史日志 1
-- `logs/{entry_name}/current.log.5` - 历史日志 5（最旧）
-
-单个文件最大 1MB，最多保留 5 个历史文件。
+- 单个文件最大 1MB，最多保留 5 个历史文件
 
 ## 开发状态
 
-- ✅ **server/core.rs** - TCP 转发核心完成
-- ✅ **server/src/main.rs** - HTTP API 完成
-- ✅ **port.json** - 配置管理完成
-- ⏳ **frontend/** - Web UI 开发中
-- ⏳ **gui/** - Tauri GUI 开发中
-
-## 常见问题
-
-### 端口被占用
-如果 7777 端口被占用，可以修改 `server/src/main.rs` 中的端口号。
-
-### 日志位置
-日志文件存储在 `logs/{条目名称}/` 目录下。
-
-### Windows 防火墙
-首次运行时，Windows 可能会询问是否允许端口监听，请点击"允许"。
+- ✅ **server/core.rs** - TCP 转发核心
+- ✅ **server/src/main.rs** - CLI 命令 + HTTP API
+- ✅ **port.json** - 配置管理（用户 home 目录）
+- ⏳ **gui/** - Tauri GUI
