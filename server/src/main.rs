@@ -29,7 +29,11 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// 列出所有转发条目
-    List,
+    List {
+        /// 显示全部详细信息
+        #[arg(short, long)]
+        verbose: bool,
+    },
 
     /// 添加新的转发条目
     Add {
@@ -108,7 +112,7 @@ fn main() -> anyhow::Result<()> {
             Cli::command().print_help()?;
             println!();
         }
-        Some(Commands::List) => cmd_list()?,
+        Some(Commands::List { verbose }) => cmd_list(verbose)?,
         Some(Commands::Add {
             name,
             source_port,
@@ -151,7 +155,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_list() -> anyhow::Result<()> {
+fn cmd_list(verbose: bool) -> anyhow::Result<()> {
     let store = ConfigStore::load()?;
     let entries = store.entries();
 
@@ -160,39 +164,60 @@ fn cmd_list() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    use comfy_table::{presets::UTF8_FULL, ContentArrangement, Table};
+    if verbose {
+        for (i, e) in entries.iter().enumerate() {
+            if i > 0 {
+                println!();
+            }
+            println!("ID:        {}", e.id);
+            println!("名称:      {}", e.name);
+            println!("监听地址:  {}", e.source_address);
+            println!("源端口:    {}", e.source_port);
+            println!("目标地址:  {}", e.target_address);
+            println!("目标端口:  {}", e.target_port);
+            println!("启用:      {}", if e.enabled { "是" } else { "否" });
+            println!("日志目录:  {}", e.log_directory);
+            println!("创建时间:  {}", e.created_at.format("%Y-%m-%d %H:%M:%S"));
+            println!("更新时间:  {}", e.updated_at.format("%Y-%m-%d %H:%M:%S"));
+        }
+    } else {
+        use comfy_table::{presets::UTF8_FULL, ContentArrangement, Table};
 
-    let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL)
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec![
-            "ID",
-            "名称",
-            "监听地址",
-            "源端口",
-            "目标地址",
-            "目标端口",
-            "启用",
-        ]);
+        let mut table = Table::new();
+        table
+            .load_preset(UTF8_FULL)
+            .set_content_arrangement(ContentArrangement::Dynamic)
+            .set_header(vec![
+                "ID",
+                "名称",
+                "监听地址",
+                "源端口",
+                "目标地址",
+                "目标端口",
+                "启用",
+            ]);
 
-    for e in entries {
-        table.add_row(vec![
-            e.id.clone(),
-            e.name.clone(),
-            e.source_address.clone(),
-            e.source_port.to_string(),
-            e.target_address.clone(),
-            e.target_port.to_string(),
-            if e.enabled {
-                "是".to_string()
-            } else {
-                "否".to_string()
-            },
-        ]);
+        for e in entries {
+            table.add_row(vec![
+                e.id.clone(),
+                e.name.clone(),
+                e.source_address.clone(),
+                e.source_port.to_string(),
+                e.target_address.clone(),
+                e.target_port.to_string(),
+                if e.enabled {
+                    "是".to_string()
+                } else {
+                    "否".to_string()
+                },
+            ]);
+        }
+
+        println!("{table}");
     }
 
-    println!("{table}");
+    println!();
+    println!("共 {} 条记录", entries.len());
     Ok(())
 }
 
