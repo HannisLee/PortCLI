@@ -115,6 +115,8 @@ cargo build --release -p porthannis-server
 # 二进制: target/release/porthannis (或 .exe)
 ```
 
+> **Linux 发布注意事项**：默认构建产物动态链接 GLIBC，在旧版服务器上会报 `GLIBC_2.xx not found` 错误。发布时请使用 musl 静态编译，详见 [release.md](release.md)。
+
 ## 日志系统
 
 每个转发条目都有独立的日志目录：
