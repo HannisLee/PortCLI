@@ -6,7 +6,7 @@ The repository name remains `PortHannis`; the release binary is `portcli`.
 
 ## Status
 
-This repository is currently in a CLI refactor phase. The target product removes the previous desktop GUI, Wails frontend, WebUI, and system tray behavior, and keeps a command-line workflow with a background daemon.
+The `v0.4.0` release is the first PortCLI release. It removes the previous desktop GUI, Wails frontend, WebUI, and system tray behavior, and keeps a command-line workflow with a background daemon.
 
 See [spec.md](spec.md) for the full product specification and [version.md](version.md) for release history.
 
@@ -118,7 +118,7 @@ Privileged ports such as `80` and `443` are not blocked by the CLI. Permission c
 
 ## Build Targets
 
-Final release artifacts should use these names:
+Release artifacts use these names:
 
 | Platform | Binary |
 |----------|--------|
@@ -135,6 +135,20 @@ Target platforms:
 - `darwin/amd64`
 - `darwin/arm64`
 
+Linux release binaries are built with `CGO_ENABLED=0`, so they are statically linked Go binaries and do not depend on the target machine's glibc version.
+
+## Linux Compatibility
+
+Use the Linux release artifact that matches your CPU:
+
+```bash
+tar -xzf portcli-v0.4.0-linux-amd64.tar.gz
+chmod +x portcli
+./portcli --help
+```
+
+If an older Linux server previously reported a glibc version error, use the `v0.4.0` Linux artifact. It is built as a static Go binary with `CGO_ENABLED=0`; no glibc upgrade should be required.
+
 ## Development
 
 Requirements:
@@ -142,6 +156,15 @@ Requirements:
 - Go 1.22+
 
 The final CLI implementation should prefer the Go standard library unless an external dependency provides clear value.
+
+Example release build commands:
+
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o portcli .
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o portcli .
+GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o portcli.exe .
+GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o portcli .
+```
 
 Before creating a new release tag, update:
 

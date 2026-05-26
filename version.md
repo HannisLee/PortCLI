@@ -10,6 +10,7 @@ This file summarizes the visible Git tags and notable project history. Update it
 | `v0.2.0` | 2026-05-04 | Rust/Tauri architecture milestone from the remote history, including Rust core, embedded WebUI, Tauri GUI, and finalized project structure. |
 | `v0.2.1` | 2026-05-04 | CI fix release using `cargo-binstall` for faster Tauri CLI installation. |
 | `v0.3.0` | 2026-05-07 | Release workflow milestone for Windows portable GUI executable and Linux headless binary; repository links corrected to `HannisLee/PortHannis`. |
+| `v0.4.0` | 2026-05-26 | First PortCLI release: pure Go CLI, background daemon, name-based `port.json`, no GUI/WebUI/tray, and static Linux builds to avoid glibc compatibility issues. |
 
 ## Notable History
 
@@ -41,9 +42,9 @@ This file summarizes the visible Git tags and notable project history. Update it
 - Release flow was updated for Windows GUI portable executable and Linux CLI artifacts.
 - Linux musl static build documentation was added to address GLIBC compatibility.
 
-### Current Refactor Target: PortCLI
+### 2026-05-26: PortCLI v0.4.0
 
-The current specification targets a pure Go CLI product named `portcli`:
+The `v0.4.0` release targets a pure Go CLI product named `portcli`:
 
 - Repository stays named `PortHannis`.
 - Final product removes Wails, WebUI, frontend, and system tray behavior.
@@ -54,6 +55,7 @@ The current specification targets a pure Go CLI product named `portcli`:
 - Rule names replace IDs completely.
 - Default names start at `name1`.
 - `logPath` is optional in hand-written JSON and is filled by the CLI when needed.
+- Linux release artifacts are built with `CGO_ENABLED=0` to avoid glibc version errors on older systems.
 
 See `spec.md` for the authoritative implementation specification.
 
