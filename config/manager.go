@@ -2,41 +2,53 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
+	"sort"
+	"strconv"
 	"sync"
 )
 
 const (
 	appName    = "porthannis"
-	configFile = "rules.json"
+	configFile = "port.json"
+	stateFile  = "daemon.json"
 )
+
+var safeLogNameRE = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 type Manager struct {
 	mu     sync.Mutex
-	config *Config
+	config Config
 	dir    string
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		config: &Config{Rules: []ForwardRule{}, WebUI: defaultWebUIConfig()},
+		config: Config{},
 		dir:    GetConfigDir(),
 	}
 }
 
-func defaultWebUIConfig() WebUIConfig {
-	return WebUIConfig{
-		Enabled:  true,
-		Port:     18080,
-		Password: "",
-	}
-}
-
 func GetConfigDir() string {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, appName)
+	switch runtime.GOOS {
+	case "windows":
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			return filepath.Join(appData, appName)
+		}
+	case "darwin":
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, "Library", "Application Support", appName)
+		}
+	default:
+		if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+			return filepath.Join(xdg, appName)
+		}
 	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = "."
@@ -48,15 +60,30 @@ func GetLogsDir() string {
 	return filepath.Join(GetConfigDir(), "logs")
 }
 
+func GetStatePath() string {
+	return filepath.Join(GetConfigDir(), stateFile)
+}
+
+func (m *Manager) ConfigPath() string {
+	return filepath.Join(m.dir, configFile)
+}
+
+func (m *Manager) LogsDir() string {
+	return filepath.Join(m.dir, "logs")
+}
+
+func (m *Manager) StatePath() string {
+	return filepath.Join(m.dir, stateFile)
+}
+
 func (m *Manager) LoadConfig() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	path := filepath.Join(m.dir, configFile)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(m.ConfigPath())
 	if err != nil {
 		if os.IsNotExist(err) {
-			m.config = &Config{Rules: []ForwardRule{}}
+			m.config = Config{}
 			return nil
 		}
 		return err
@@ -66,13 +93,10 @@ func (m *Manager) LoadConfig() error {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return err
 	}
-	if cfg.Rules == nil {
-		cfg.Rules = []ForwardRule{}
+	if cfg == nil {
+		cfg = Config{}
 	}
-	if cfg.WebUI.Port == 0 {
-		cfg.WebUI = defaultWebUIConfig()
-	}
-	m.config = &cfg
+	m.config = cfg
 	return nil
 }
 
@@ -90,59 +114,118 @@ func (m *Manager) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(m.dir, configFile), data, 0644)
+	data = append(data, '\n')
+	return os.WriteFile(m.ConfigPath(), data, 0644)
 }
 
-func (m *Manager) GetConfig() *Config {
+func (m *Manager) Rules() Config {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.config
-}
 
-func (m *Manager) AddRule(rule ForwardRule) error {
-	m.mu.Lock()
-	m.config.Rules = append(m.config.Rules, rule)
-	err := m.saveLocked()
-	m.mu.Unlock()
-	return err
-}
-
-func (m *Manager) DeleteRule(id string) error {
-	m.mu.Lock()
-	for i, r := range m.config.Rules {
-		if r.ID == id {
-			m.config.Rules = append(m.config.Rules[:i], m.config.Rules[i+1:]...)
-			break
-		}
+	out := make(Config, len(m.config))
+	for name, rule := range m.config {
+		out[name] = rule
 	}
-	err := m.saveLocked()
-	m.mu.Unlock()
-	return err
+	return out
 }
 
-func (m *Manager) UpdateRule(id string, enabled bool) error {
-	m.mu.Lock()
-	for i, r := range m.config.Rules {
-		if r.ID == id {
-			m.config.Rules[i].Enabled = enabled
-			break
-		}
-	}
-	err := m.saveLocked()
-	m.mu.Unlock()
-	return err
-}
-
-func (m *Manager) GetWebUIConfig() WebUIConfig {
+func (m *Manager) Names() []string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.config.WebUI
+	return sortedNames(m.config)
 }
 
-func (m *Manager) UpdateWebUIConfig(cfg WebUIConfig) error {
+func (m *Manager) GetRule(name string) (Rule, bool) {
 	m.mu.Lock()
-	m.config.WebUI = cfg
-	err := m.saveLocked()
-	m.mu.Unlock()
-	return err
+	defer m.mu.Unlock()
+	rule, ok := m.config[name]
+	return rule, ok
+}
+
+func (m *Manager) AddRule(name string, rule Rule) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if name == "" {
+		name = nextNameLocked(m.config)
+	}
+	if _, exists := m.config[name]; exists {
+		return fmt.Errorf("rule %q already exists", name)
+	}
+	if rule.LogPath == "" {
+		rule.LogPath = m.DefaultLogPath(name)
+	}
+	m.config[name] = rule
+	return m.saveLocked()
+}
+
+func (m *Manager) DeleteRule(name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.config[name]; !exists {
+		return fmt.Errorf("rule %q not found", name)
+	}
+	delete(m.config, name)
+	return m.saveLocked()
+}
+
+func (m *Manager) SetEnabled(name string, enabled bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	rule, exists := m.config[name]
+	if !exists {
+		return fmt.Errorf("rule %q not found", name)
+	}
+	rule.Enabled = enabled
+	if enabled && rule.LogPath == "" {
+		rule.LogPath = m.DefaultLogPath(name)
+	}
+	m.config[name] = rule
+	return m.saveLocked()
+}
+
+func (m *Manager) DefaultLogPath(name string) string {
+	safeName := safeLogNameRE.ReplaceAllString(name, "_")
+	if safeName == "" {
+		safeName = "rule"
+	}
+	return filepath.Join(m.LogsDir(), safeName+".log")
+}
+
+func (m *Manager) EnsureLogPaths() (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	changed := false
+	for name, rule := range m.config {
+		if rule.Enabled && rule.LogPath == "" {
+			rule.LogPath = m.DefaultLogPath(name)
+			m.config[name] = rule
+			changed = true
+		}
+	}
+	if !changed {
+		return false, nil
+	}
+	return true, m.saveLocked()
+}
+
+func sortedNames(cfg Config) []string {
+	names := make([]string, 0, len(cfg))
+	for name := range cfg {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func nextNameLocked(cfg Config) string {
+	for i := 1; ; i++ {
+		name := "name" + strconv.Itoa(i)
+		if _, exists := cfg[name]; !exists {
+			return name
+		}
+	}
 }

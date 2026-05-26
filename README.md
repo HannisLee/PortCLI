@@ -1,148 +1,154 @@
 # PortHannis
 
-一个轻量级的跨平台端口转发工具，通过系统托盘 UI 管理转发规则。
+PortHannis is being refactored into `portcli`, a lightweight cross-platform TCP port forwarding CLI.
 
-A lightweight cross-platform port forwarding tool with a system tray UI.
+The repository name remains `PortHannis`; the release binary is `portcli`.
 
-## 功能特性
+## Status
 
-- 单文件可执行程序，无需安装
-- 系统托盘常驻，点击打开配置窗口
-- 简单的 TCP 端口转发：本地端口 → 目标地址:端口
-- 每个转发规则独立日志记录，支持循环缓冲（单文件最大 10MB）
-- 跨平台支持：Windows、Linux、macOS
+This repository is currently in a CLI refactor phase. The target product removes the previous desktop GUI, Wails frontend, WebUI, and system tray behavior, and keeps a command-line workflow with a background daemon.
 
-## 界面预览
+See [spec.md](spec.md) for the full product specification and [version.md](version.md) for release history.
 
-```
-┌─────────────────────────────────────────────┐
-│  PortHannis                    [─][□][×]    │
-├─────────────────────────────────────────────┤
-│                                             │
-│  [+ 添加转发规则]                           │
-│                                             │
-│  ┌───────────────────────────────────────┐ │
-│  │ 🟢 本地:8080 → 192.168.1.100:3000    │ │
-│  │    [查看日志] [禁用] [删除]           │ │
-│  └───────────────────────────────────────┘ │
-│                                             │
-│  ┌───────────────────────────────────────┐ │
-│  │ ⚫ 本地:9000 → 10.0.0.5:22            │ │
-│  │    [查看日志] [启用] [删除]           │ │
-│  └───────────────────────────────────────┘ │
-│                                             │
-└─────────────────────────────────────────────┘
-```
+## Features
 
-## 下载
+- Single-file executable
+- Cross-platform support: Linux, Windows, macOS
+- Background daemon started by `portcli run`
+- Runtime status query through `portcli status`
+- Graceful daemon shutdown through `portcli stop`
+- TCP forwarding from local listen address to target address
+- JSON configuration in one `port.json` file
+- Rule names instead of IDs
+- Default rule names from `name1`, `name2`, `name3`
+- Per-rule logs with configurable `logPath`
 
-前往 [Releases](https://github.com/HannisLee/PortHannis/releases) 下载对应平台的可执行文件。
+## Quick Start
 
-## 快速开始
-
-1. 下载对应平台的可执行文件
-2. 运行程序 — 应用将出现在系统托盘中
-3. 点击托盘图标打开配置窗口
-4. 添加转发规则：本地端口 → 目标地址 + 目标端口
-5. 启用规则即可开始转发
-
-## 配置文件
-
-配置和日志文件按平台存储在以下位置：
-
-| 平台 | 路径 |
-|------|------|
-| Windows | `%APPDATA%\porthannis\` |
-| Linux | `~/.config/porthannis/` |
-| macOS | `~/Library/Application Support/porthannis/` |
-
-目录结构：
-
-```
-porthannis/
-├── rules.json          # 转发规则配置
-└── logs/
-    └── {ruleID}.log    # 每条规则独立的日志文件
-```
-
-## 技术栈
-
-| 组件 | 选择 | 说明 |
-|------|------|------|
-| 后端语言 | Go 1.22+ | 高性能、跨平台编译、单文件输出 |
-| UI 框架 | Wails v2 | Go + Web 前端，使用系统 WebView |
-| 前端框架 | Svelte + TypeScript | 轻量、编译后体积小 |
-| 配置存储 | JSON 文件 | 简单、人类可读 |
-| 日志存储 | 循环缓冲文件 | 限制磁盘占用，每规则独立文件 |
-
-## 项目结构
-
-```
-PortHannis/
-├── main.go                 # Wails 入口
-├── app.go                  # 主应用逻辑和 Wails bindings
-├── config/                 # 配置管理
-│   ├── types.go            # 数据结构定义
-│   └── manager.go          # 配置文件读写
-├── forwarder/              # 端口转发引擎
-│   ├── engine.go           # 转发引擎核心
-│   ├── rule.go             # 转发规则运行时状态
-│   └── logger.go           # 循环缓冲日志记录器
-├── tray/                   # 系统托盘（开发中）
-├── frontend/               # Wails 前端
-│   ├── src/
-│   │   ├── App.svelte      # 主界面
-│   │   └── components/     # UI 组件
-│   └── package.json
-├── wails.json              # Wails 配置
-├── go.mod
-└── README.md
-```
-
-## 开发
-
-### 环境要求
-
-- [Go 1.22+](https://go.dev/dl/)
-- [Wails CLI v2](https://wails.io/docs/gettingstarted/installation)
-- [Node.js](https://nodejs.org/)（前端工具链）
-
-### 构建
+Add a forwarding rule:
 
 ```bash
-# 克隆仓库
-git clone https://github.com/HannisLee/PortHannis.git
-cd PortHannis
-
-# 安装前端依赖
-cd frontend && npm install && cd ..
-
-# 开发模式
-wails dev
-
-# 生产构建
-wails build
+portcli add --listen 0.0.0.0:8080 --target 192.168.1.100:3000
 ```
 
-### 跨平台编译
+Add a named rule:
 
 ```bash
-wails build -platform windows/amd64
-wails build -platform linux/amd64
-wails build -platform darwin/amd64
-wails build -platform darwin/arm64
+portcli add --name web --listen 127.0.0.1:9000 --target 10.0.0.5:22
 ```
 
-## 开发进度
+Start the background daemon:
 
-- [x] Phase 1: 项目初始化
-- [x] Phase 2: 核心数据结构与配置管理
-- [ ] Phase 3: 端口转发引擎（进行中）
-- [ ] Phase 4: 系统托盘
-- [ ] Phase 5: 主应用逻辑
-- [ ] Phase 6: 前端 UI
-- [ ] Phase 7: 集成与测试
-- [ ] Phase 8: 打包发布
+```bash
+portcli run
+```
+
+Check status:
+
+```bash
+portcli status
+```
+
+Stop the daemon:
+
+```bash
+portcli stop
+```
+
+## Commands
+
+```bash
+portcli add --listen 0.0.0.0:8080 --target 192.168.1.100:3000
+portcli add --name web --listen 127.0.0.1:9000 --target 10.0.0.5:22
+
+portcli list
+portcli enable name1
+portcli disable name1
+portcli remove name1
+
+portcli run
+portcli status
+portcli stop
+
+portcli logs name1 --limit 100
+portcli logs name1 --follow
+portcli clear-logs name1
+```
+
+## Configuration
+
+The only configuration file is `port.json`.
+
+The top-level JSON object maps rule names to rule objects. There are no rule IDs.
+
+```json
+{
+  "name1": {
+    "sourceHost": "0.0.0.0",
+    "localPort": 8080,
+    "targetHost": "192.168.1.100",
+    "targetPort": 3000,
+    "enabled": true,
+    "logPath": ""
+  }
+}
+```
+
+`logPath` may be omitted or left empty in hand-written config. `portcli add` and `portcli enable <name>` fill it automatically when missing.
+
+Default config locations:
+
+| Platform | Config path |
+|----------|-------------|
+| Linux | `$XDG_CONFIG_HOME/porthannis/port.json` or `~/.config/porthannis/port.json` |
+| Windows | `%APPDATA%\porthannis\port.json` |
+| macOS | `~/Library/Application Support/porthannis/port.json` |
+
+Default logs are stored under:
+
+```text
+<config-dir>/logs/
+```
+
+## Port Policy
+
+`portcli` accepts local and target ports from `1` to `65535`.
+
+Privileged ports such as `80` and `443` are not blocked by the CLI. Permission checks are left to the operating system.
+
+## Build Targets
+
+Final release artifacts should use these names:
+
+| Platform | Binary |
+|----------|--------|
+| Linux | `portcli` |
+| Windows | `portcli.exe` |
+| macOS | `portcli` |
+
+Target platforms:
+
+- `linux/amd64`
+- `linux/arm64`
+- `windows/amd64`
+- `windows/arm64`
+- `darwin/amd64`
+- `darwin/arm64`
+
+## Development
+
+Requirements:
+
+- Go 1.22+
+
+The final CLI implementation should prefer the Go standard library unless an external dependency provides clear value.
+
+Before creating a new release tag, update:
+
+- [version.md](version.md)
+- [README.md](README.md)
+
+After creating a new release tag, verify both files reflect the released version.
 
 ## License
 

@@ -10,7 +10,7 @@ import (
 	"github.com/HannisLee/PortHannis/config"
 )
 
-const defaultMaxSize = 10 * 1024 * 1024 // 10MB
+const defaultMaxSize = 10 * 1024 * 1024 // 10 MB
 
 type CircularLogger struct {
 	mu      sync.Mutex
@@ -56,25 +56,7 @@ func (l *CircularLogger) Write(entry config.LogEntry) error {
 func (l *CircularLogger) ReadLogs(limit int) ([]config.LogEntry, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
-	if _, err := l.file.Seek(0, 0); err != nil {
-		return nil, err
-	}
-
-	var all []config.LogEntry
-	scanner := bufio.NewScanner(l.file)
-	for scanner.Scan() {
-		var entry config.LogEntry
-		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
-			continue
-		}
-		all = append(all, entry)
-	}
-
-	if limit <= 0 || limit >= len(all) {
-		return all, scanner.Err()
-	}
-	return all[len(all)-limit:], scanner.Err()
+	return readLogFile(l.path, limit)
 }
 
 func (l *CircularLogger) Clear() error {
@@ -108,4 +90,43 @@ func (l *CircularLogger) rotate() error {
 	}
 	l.file = f
 	return nil
+}
+
+func ReadLogFile(path string, limit int) ([]config.LogEntry, error) {
+	return readLogFile(path, limit)
+}
+
+func ClearLogFile(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, nil, 0644)
+}
+
+func readLogFile(path string, limit int) ([]config.LogEntry, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []config.LogEntry{}, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	var all []config.LogEntry
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		var entry config.LogEntry
+		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
+			continue
+		}
+		all = append(all, entry)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit >= len(all) {
+		return all, nil
+	}
+	return all[len(all)-limit:], nil
 }
