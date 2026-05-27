@@ -118,9 +118,8 @@ pub fn send_control_command(command: &str, name: Option<&str>) -> Result<serde_j
     let state = crate::state::load_state()?;
     let addr = format!("{}:{}", state.control_host, state.control_port);
 
-    let mut stream =
-        TcpStream::connect_timeout(&addr.parse().unwrap(), Duration::from_secs(3))
-            .map_err(|e| PortCliError::Control(format!("failed to connect: {}", e)))?;
+    let mut stream = TcpStream::connect_timeout(&addr.parse().unwrap(), Duration::from_secs(3))
+        .map_err(|e| PortCliError::Control(format!("failed to connect: {}", e)))?;
 
     let mut cmd = json!({
         "token": state.token,

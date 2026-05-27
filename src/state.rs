@@ -14,8 +14,7 @@ pub struct RuntimeState {
 }
 
 fn get_project_dirs() -> Result<ProjectDirs> {
-    ProjectDirs::from("", "", "portcli")
-        .context("could not determine project directories")
+    ProjectDirs::from("", "", "portcli").context("could not determine project directories")
 }
 
 pub fn get_state_dir() -> Result<PathBuf> {
@@ -63,11 +62,8 @@ pub fn is_daemon_running() -> bool {
     match load_state() {
         Ok(s) => {
             let addr = format!("{}:{}", s.control_host, s.control_port);
-            std::net::TcpStream::connect_timeout(
-                &addr.parse().unwrap(),
-                Duration::from_millis(500),
-            )
-            .is_ok()
+            std::net::TcpStream::connect_timeout(&addr.parse().unwrap(), Duration::from_millis(500))
+                .is_ok()
         }
         Err(_) => false,
     }

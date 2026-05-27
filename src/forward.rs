@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::Path;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
@@ -21,13 +21,11 @@ pub async fn run_forward(
     cancel_token: CancellationToken,
     status_tx: watch::Sender<RuleStatus>,
 ) {
-    let log_path = logs::get_rule_log_path(&rule.name).unwrap_or_else(|_| {
-        std::path::PathBuf::from("/dev/null")
-    });
+    let log_path = logs::get_rule_log_path(&rule.name)
+        .unwrap_or_else(|_| std::path::PathBuf::from("/dev/null"));
     let _ = logs::ensure_log_dir();
 
-    let result =
-        run_forward_inner(&rule, &cancel_token, &log_path, &status_tx).await;
+    let result = run_forward_inner(&rule, &cancel_token, &log_path, &status_tx).await;
 
     if let Err(e) = result {
         let _ = logs::append_log(
@@ -42,12 +40,13 @@ pub async fn run_forward(
 async fn run_forward_inner(
     rule: &Rule,
     cancel_token: &CancellationToken,
-    log_path: &PathBuf,
+    log_path: &Path,
     status_tx: &watch::Sender<RuleStatus>,
 ) -> Result<()> {
-    let listener = TcpListener::bind(&rule.source).await.map_err(|e| {
-        PortCliError::BindFailed(rule.source.clone(), e.to_string())
-    })?;
+    let log_path_buf = log_path.to_path_buf();
+    let listener = TcpListener::bind(&rule.source)
+        .await
+        .map_err(|e| PortCliError::BindFailed(rule.source.clone(), e.to_string()))?;
 
     let _ = logs::append_log(
         log_path,
@@ -75,7 +74,7 @@ async fn run_forward_inner(
                     Ok((inbound, peer_addr)) => {
                         let target = rule.target.clone();
                         let name = rule.name.clone();
-                        let log = log_path.clone();
+                        let log = log_path_buf.clone();
 
                         tokio::spawn(async move {
                             if let Err(e) = handle_connection(
@@ -112,7 +111,7 @@ async fn handle_connection(
     peer_addr: std::net::SocketAddr,
     target: &str,
     name: &str,
-    log_path: &PathBuf,
+    log_path: &Path,
 ) -> Result<()> {
     let _ = logs::append_log(
         log_path,
@@ -147,10 +146,7 @@ async fn handle_connection(
             let _ = logs::append_log(
                 log_path,
                 "ERROR",
-                &format!(
-                    "forward error name={} peer={} error={}",
-                    name, peer_addr, e
-                ),
+                &format!("forward error name={} peer={} error={}", name, peer_addr, e),
             );
         }
     }

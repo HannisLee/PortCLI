@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Linux musl (static) ──────────────────────────────────────────
+  linux-musl:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.target }}
+
+      - name: Install musl-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build (release)
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Package
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar -czf portcli-${{ github.ref_name }}-${{ matrix.target }}.tar.gz portcli
+          mv portcli-${{ github.ref_name }}-${{ matrix.target }}.tar.gz ${{ github.workspace }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portcli-${{ github.ref_name }}-${{ matrix.target }}
+          path: portcli-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+
+  # ── Windows MSVC ─────────────────────────────────────────────────
+  windows-msvc:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build (release)
+        run: cargo build --release --locked
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = "portcli-${{ github.ref_name }}-x86_64-pc-windows-msvc"
+          Compress-Archive -Path target/release/portcli.exe -DestinationPath "${name}.zip"
+          Move-Item "${name}.zip" ${{ github.workspace }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portcli-${{ github.ref_name }}-x86_64-pc-windows-msvc
+          path: portcli-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip
+
+  # ── GitHub Release ───────────────────────────────────────────────
+  release:
+    needs: [linux-musl, windows-msvc]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "portcli ${{ github.ref_name }}"
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/portcli-*
+            artifacts/SHA256SUMS

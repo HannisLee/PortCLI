@@ -39,19 +39,13 @@ pub enum Commands {
     },
 
     /// Remove a rule
-    Remove {
-        name: String,
-    },
+    Remove { name: String },
 
     /// Enable a rule
-    Enable {
-        name: String,
-    },
+    Enable { name: String },
 
     /// Disable a rule
-    Disable {
-        name: String,
-    },
+    Disable { name: String },
 
     /// Start the daemon process
     Run {
@@ -100,7 +94,11 @@ pub fn handle_command(cli: Cli) -> Result<()> {
             source,
             target,
         } => cmd_add(&name, &source, &target),
-        Commands::Modify { name, source, target } => cmd_modify(&name, source, target),
+        Commands::Modify {
+            name,
+            source,
+            target,
+        } => cmd_modify(&name, source, target),
         Commands::Remove { name } => cmd_remove(&name),
         Commands::Enable { name } => cmd_enable(&name),
         Commands::Disable { name } => cmd_disable(&name),
@@ -226,9 +224,8 @@ fn cmd_modify(name: &str, source: Option<String>, target: Option<String>) -> Res
 fn cmd_remove(name: &str) -> Result<()> {
     let mut config = config::load_config()?;
 
-    let idx = config::find_rule_index(&config, name).ok_or_else(|| {
-        PortCliError::RuleNotFound(name.to_string())
-    })?;
+    let idx = config::find_rule_index(&config, name)
+        .ok_or_else(|| PortCliError::RuleNotFound(name.to_string()))?;
 
     config.rules.remove(idx);
     config::save_config(&config)?;
@@ -331,8 +328,14 @@ fn cmd_status() -> Result<()> {
                         let name = rule.get("name").and_then(|n| n.as_str()).unwrap_or("");
                         let source = rule.get("source").and_then(|s| s.as_str()).unwrap_or("");
                         let target = rule.get("target").and_then(|t| t.as_str()).unwrap_or("");
-                        let enabled = rule.get("enabled").and_then(|e| e.as_bool()).unwrap_or(false);
-                        let status = rule.get("status").and_then(|s| s.as_str()).unwrap_or("unknown");
+                        let enabled = rule
+                            .get("enabled")
+                            .and_then(|e| e.as_bool())
+                            .unwrap_or(false);
+                        let status = rule
+                            .get("status")
+                            .and_then(|s| s.as_str())
+                            .unwrap_or("unknown");
                         let error = rule.get("error").and_then(|e| e.as_str());
 
                         println!();
@@ -402,13 +405,7 @@ fn cmd_reload() -> Result<()> {
     Ok(())
 }
 
-fn cmd_logs(
-    name: Option<&str>,
-    lines: usize,
-    follow: bool,
-    clear: bool,
-    dir: bool,
-) -> Result<()> {
+fn cmd_logs(name: Option<&str>, lines: usize, follow: bool, clear: bool, dir: bool) -> Result<()> {
     if dir {
         println!("{}", logs::get_log_dir()?.display());
         return Ok(());

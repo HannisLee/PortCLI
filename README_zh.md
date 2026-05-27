@@ -3,6 +3,7 @@
 一个用 Rust 编写的跨平台 TCP 端口转发 CLI 工具。通过 CLI 管理转发规则，由后台守护进程执行转发——无需 root 权限。
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![CI](https://github.com/HannisLee/PortHannis/actions/workflows/ci.yml/badge.svg)](https://github.com/HannisLee/PortHannis/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows-blue.svg)](#)
 [![Tests](https://img.shields.io/badge/tests-105%2F105%20passed-brightgreen.svg)](#)
 
@@ -17,13 +18,49 @@
 
 ## 安装
 
+### 从 GitHub Releases 下载（推荐）
+
+从 [GitHub Releases](https://github.com/HannisLee/PortHannis/releases) 下载最新的预编译二进制文件。
+
+**Linux (musl, 静态链接)**：
+
+```bash
+wget https://github.com/HannisLee/PortHannis/releases/download/v0.4.0/portcli-v0.4.0-x86_64-unknown-linux-musl.tar.gz
+tar -xzf portcli-v0.4.0-x86_64-unknown-linux-musl.tar.gz
+chmod +x portcli
+sudo mv portcli /usr/local/bin/portcli
+portcli --help
+```
+
+musl 构建版本采用**静态链接**，不依赖 glibc。可以在 Ubuntu（20.04+）、Debian、CentOS、Rocky、Alpine 等任意 Linux 发行版上运行。
+
+```bash
+# 验证：musl 构建版本通常显示 "not a dynamic executable" 或没有 libc 依赖
+ldd ./portcli
+```
+
+**Windows**：
+
+1. 从 [Releases](https://github.com/HannisLee/PortHannis/releases) 页面下载 `portcli-v0.4.0-x86_64-pc-windows-msvc.zip`
+2. 将 `portcli.exe` 解压到固定目录（例如 `C:\Tools\portcli\`）
+3. 将该目录加入 `PATH`
+4. 打开 PowerShell 运行：
+
+```powershell
+portcli --help
+```
+
+### 从源码编译
+
 需要 Rust 1.70 或更高版本。
 
 ```bash
+git clone https://github.com/HannisLee/PortHannis.git
+cd PortHannis
 cargo build --release
 ```
 
-编译产物位于 `target/release/portcli`（Linux）或 `target\release\portcli.exe`（Windows）。建议将其加入 `PATH` 方便使用。
+编译产物位于 `target/release/portcli`（Linux）或 `target\release\portcli.exe`（Windows）。
 
 ## 快速开始
 

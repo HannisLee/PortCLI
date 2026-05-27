@@ -15,21 +15,14 @@ pub struct Rule {
     pub enabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub rules: Vec<Rule>,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Config { rules: Vec::new() }
-    }
-}
-
 fn get_project_dirs() -> Result<ProjectDirs> {
-    ProjectDirs::from("", "", "portcli")
-        .context("could not determine project directories")
+    ProjectDirs::from("", "", "portcli").context("could not determine project directories")
 }
 
 pub fn get_config_dir() -> Result<PathBuf> {
@@ -45,8 +38,7 @@ pub fn load_config() -> Result<Config> {
     if !path.exists() {
         return Ok(Config::default());
     }
-    let content =
-        fs::read_to_string(&path).map_err(|e| PortCliError::ConfigRead(e.to_string()))?;
+    let content = fs::read_to_string(&path).map_err(|e| PortCliError::ConfigRead(e.to_string()))?;
     let config: Config =
         toml::from_str(&content).map_err(|e| PortCliError::ConfigRead(e.to_string()))?;
     Ok(config)
@@ -56,7 +48,8 @@ pub fn save_config(config: &Config) -> Result<()> {
     let dir = get_config_dir()?;
     fs::create_dir_all(&dir).map_err(|e| PortCliError::ConfigWrite(e.to_string()))?;
     let path = get_config_path()?;
-    let content = toml::to_string_pretty(config).map_err(|e| PortCliError::ConfigWrite(e.to_string()))?;
+    let content =
+        toml::to_string_pretty(config).map_err(|e| PortCliError::ConfigWrite(e.to_string()))?;
     fs::write(&path, content).map_err(|e| PortCliError::ConfigWrite(e.to_string()))?;
     Ok(())
 }

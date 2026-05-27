@@ -8,8 +8,7 @@ use std::time::Duration;
 use crate::error::PortCliError;
 
 fn get_project_dirs() -> Result<ProjectDirs> {
-    ProjectDirs::from("", "", "portcli")
-        .context("could not determine project directories")
+    ProjectDirs::from("", "", "portcli").context("could not determine project directories")
 }
 
 pub fn get_log_dir() -> Result<PathBuf> {
@@ -47,14 +46,11 @@ pub fn append_log(path: &Path, level: &str, message: &str) -> Result<()> {
 
 pub fn read_last_lines(path: &Path, n: usize) -> Result<Vec<String>> {
     if !path.exists() {
-        return Err(PortCliError::LogFileNotFound(
-            path.display().to_string(),
-        )
-        .into());
+        return Err(PortCliError::LogFileNotFound(path.display().to_string()).into());
     }
     let file = fs::File::open(path)?;
     let reader = BufReader::new(file);
-    let lines: Vec<String> = reader.lines().filter_map(|l| l.ok()).collect();
+    let lines: Vec<String> = reader.lines().map_while(Result::ok).collect();
     let start = if lines.len() > n { lines.len() - n } else { 0 };
     Ok(lines[start..].to_vec())
 }
@@ -68,10 +64,7 @@ pub fn clear_log(path: &Path) -> Result<()> {
 
 pub fn follow_log(path: &Path, initial_lines: usize) -> Result<()> {
     if !path.exists() {
-        return Err(PortCliError::LogFileNotFound(
-            path.display().to_string(),
-        )
-        .into());
+        return Err(PortCliError::LogFileNotFound(path.display().to_string()).into());
     }
 
     let lines = read_last_lines(path, initial_lines)?;
@@ -86,11 +79,7 @@ pub fn follow_log(path: &Path, initial_lines: usize) -> Result<()> {
     let poll_interval = Duration::from_millis(500);
     let mut buf = String::new();
 
-    loop {
-        let metadata = match fs::metadata(path) {
-            Ok(m) => m,
-            Err(_) => break,
-        };
+    while let Ok(metadata) = fs::metadata(path) {
         let new_size = metadata.len();
 
         if new_size < current_size {
@@ -118,4 +107,3 @@ pub fn follow_log(path: &Path, initial_lines: usize) -> Result<()> {
 
     Ok(())
 }
-

@@ -156,11 +156,7 @@ async fn run_daemon_async() -> Result<()> {
     drop(rule_map);
 
     state::delete_state()?;
-    logs::append_log(
-        &logs::get_daemon_log_path()?,
-        "INFO",
-        "daemon stopped",
-    )?;
+    logs::append_log(&logs::get_daemon_log_path()?, "INFO", "daemon stopped")?;
 
     Ok(())
 }
@@ -217,30 +213,28 @@ async fn handle_control_command(
             let _ = cmd.response.send(resp);
             root_cancel.cancel();
         }
-        "reload" => {
-            match config::load_config() {
-                Ok(new_config) => {
-                    stop_all_rules(rules).await;
-                    *config.lock().await = new_config.clone();
-                    for rule in &new_config.rules {
-                        if rule.enabled {
-                            start_rule_task(rules, rule.clone(), root_cancel).await;
-                        }
+        "reload" => match config::load_config() {
+            Ok(new_config) => {
+                stop_all_rules(rules).await;
+                *config.lock().await = new_config.clone();
+                for rule in &new_config.rules {
+                    if rule.enabled {
+                        start_rule_task(rules, rule.clone(), root_cancel).await;
                     }
-                    let _ = logs::append_log(
-                        &logs::get_daemon_log_path().unwrap_or_default(),
-                        "INFO",
-                        "config reloaded",
-                    );
-                    let resp = json!({"ok": true, "message": "config reloaded"});
-                    let _ = cmd.response.send(resp);
                 }
-                Err(e) => {
-                    let resp = json!({"ok": false, "error": format!("failed to reload config: {}", e)});
-                    let _ = cmd.response.send(resp);
-                }
+                let _ = logs::append_log(
+                    &logs::get_daemon_log_path().unwrap_or_default(),
+                    "INFO",
+                    "config reloaded",
+                );
+                let resp = json!({"ok": true, "message": "config reloaded"});
+                let _ = cmd.response.send(resp);
             }
-        }
+            Err(e) => {
+                let resp = json!({"ok": false, "error": format!("failed to reload config: {}", e)});
+                let _ = cmd.response.send(resp);
+            }
+        },
         _ => {
             let resp = json!({"ok": false, "error": format!("unknown command: {}", cmd.command)});
             let _ = cmd.response.send(resp);

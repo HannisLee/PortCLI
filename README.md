@@ -3,6 +3,7 @@
 A cross-platform TCP port forwarding CLI tool written in Rust. Manage forwarding rules and run them through a background daemon — no root required.
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![CI](https://github.com/HannisLee/PortHannis/actions/workflows/ci.yml/badge.svg)](https://github.com/HannisLee/PortHannis/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows-blue.svg)](#)
 [![Tests](https://img.shields.io/badge/tests-105%2F105%20passed-brightgreen.svg)](#)
 
@@ -17,13 +18,49 @@ A cross-platform TCP port forwarding CLI tool written in Rust. Manage forwarding
 
 ## Installation
 
+### From GitHub Releases (recommended)
+
+Download the latest prebuilt binary from [GitHub Releases](https://github.com/HannisLee/PortHannis/releases).
+
+**Linux (musl, static)**:
+
+```bash
+wget https://github.com/HannisLee/PortHannis/releases/download/v0.4.0/portcli-v0.4.0-x86_64-unknown-linux-musl.tar.gz
+tar -xzf portcli-v0.4.0-x86_64-unknown-linux-musl.tar.gz
+chmod +x portcli
+sudo mv portcli /usr/local/bin/portcli
+portcli --help
+```
+
+The musl build is **statically linked** — no glibc dependency. It runs on Ubuntu (20.04+), Debian, CentOS, Rocky, Alpine, and any other Linux distribution with the same CPU architecture.
+
+```bash
+# Verify: musl builds show "not a dynamic executable" or no libc dependency
+ldd ./portcli
+```
+
+**Windows**:
+
+1. Download `portcli-v0.4.0-x86_64-pc-windows-msvc.zip` from the [Releases](https://github.com/HannisLee/PortHannis/releases) page
+2. Extract `portcli.exe` to a permanent directory (e.g. `C:\Tools\portcli\`)
+3. Add that directory to your `PATH`
+4. Open PowerShell and run:
+
+```powershell
+portcli --help
+```
+
+### Build from Source
+
 Requires Rust 1.70 or later.
 
 ```bash
+git clone https://github.com/HannisLee/PortHannis.git
+cd PortHannis
 cargo build --release
 ```
 
-The binary is at `target/release/portcli` (Linux) or `target\release\portcli.exe` (Windows). Add it to your `PATH` for convenience.
+The binary is at `target/release/portcli` (Linux) or `target\release\portcli.exe` (Windows).
 
 ## Quick Start
 

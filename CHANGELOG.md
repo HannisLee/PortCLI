@@ -32,7 +32,10 @@ portcli: a complete ground-up rewrite as a pure CLI TCP port forwarding tool. No
 - **Graceful shutdown**: `CancellationToken` tree, cleanup on SIGINT/SIGTERM/stop command
 - **Config auto-reload**: enable/disable/modify/remove notify daemon automatically
 - **Log follow mode** (`-f`): 500ms polling, works on Linux and Windows
+- **GitHub Actions CI/CD**: format + clippy + test on every push/PR; automated release on tag push
+- **Linux musl static builds** for release artifacts — no glibc dependency, runs on any distro
 - Comprehensive test suite: 105 tests passed (53 Windows, 52 Linux/WSL2)
+- `LICENSE` (MIT), `RELEASE.md`, `CHANGELOG.md` added
 
 ### Architecture
 
