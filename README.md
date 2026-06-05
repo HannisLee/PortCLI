@@ -18,6 +18,29 @@
 
 ## 安装
 
+### 一行安装（Linux x86_64）
+
+在 Linux x86_64 上可以直接安装最新 release：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HannisLee/PortHannis/main/install.sh | bash
+```
+
+默认安装到 `/usr/local/bin/portcli`。如果当前用户不能写入该目录，脚本会尝试使用 `sudo`。
+
+也可以指定版本或安装目录：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HannisLee/PortHannis/main/install.sh | PORTCLI_VERSION=0.4.3 bash
+curl -fsSL https://raw.githubusercontent.com/HannisLee/PortHannis/main/install.sh | PORTCLI_INSTALL_DIR="$HOME/.local/bin" bash
+```
+
+安装后验证：
+
+```bash
+portcli --version
+```
+
 ### 从 GitHub Releases 下载
 
 从 [GitHub Releases](https://github.com/HannisLee/PortHannis/releases) 下载对应平台的预编译二进制文件。
