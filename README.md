@@ -3,7 +3,7 @@
 `portcli` 是一个用 Rust 编写的跨平台 TCP 端口转发命令行工具。它用 CLI 管理转发规则，用后台守护进程执行转发；普通高位端口不需要 root 或管理员权限。
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
-[![CI](https://github.com/HannisLee/PortHannis/actions/workflows/ci.yml/badge.svg)](https://github.com/HannisLee/PortHannis/actions/workflows/ci.yml)
+[![CI](https://github.com/HannisLee/PortCLI/actions/workflows/ci.yml/badge.svg)](https://github.com/HannisLee/PortCLI/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows-blue.svg)](#)
 [![Tests](https://img.shields.io/badge/tests-105%2F105%20passed-brightgreen.svg)](#)
 
@@ -23,7 +23,7 @@
 在 Linux x86_64 上可以直接安装最新 release：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HannisLee/PortHannis/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/HannisLee/PortCLI/main/install.sh | bash
 ```
 
 默认安装到 `/usr/local/bin/portcli`。如果当前用户不能写入该目录，脚本会尝试使用 `sudo`。
@@ -31,8 +31,8 @@ curl -fsSL https://raw.githubusercontent.com/HannisLee/PortHannis/main/install.s
 也可以指定版本或安装目录：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HannisLee/PortHannis/main/install.sh | PORTCLI_VERSION=0.4.3 bash
-curl -fsSL https://raw.githubusercontent.com/HannisLee/PortHannis/main/install.sh | PORTCLI_INSTALL_DIR="$HOME/.local/bin" bash
+curl -fsSL https://raw.githubusercontent.com/HannisLee/PortCLI/main/install.sh | PORTCLI_VERSION=0.4.3 bash
+curl -fsSL https://raw.githubusercontent.com/HannisLee/PortCLI/main/install.sh | PORTCLI_INSTALL_DIR="$HOME/.local/bin" bash
 ```
 
 安装后验证：
@@ -43,13 +43,13 @@ portcli --version
 
 ### 从 GitHub Releases 下载
 
-从 [GitHub Releases](https://github.com/HannisLee/PortHannis/releases) 下载对应平台的预编译二进制文件。
+从 [GitHub Releases](https://github.com/HannisLee/PortCLI/releases) 下载对应平台的预编译二进制文件。
 
 **Linux 静态链接版本：**
 
 ```bash
-wget https://github.com/HannisLee/PortHannis/releases/download/v0.4.0/portcli-v0.4.0-x86_64-unknown-linux-musl.tar.gz
-tar -xzf portcli-v0.4.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/HannisLee/PortCLI/releases/download/v0.4.3/portcli-v0.4.3-x86_64-unknown-linux-musl.tar.gz
+tar -xzf portcli-v0.4.3-x86_64-unknown-linux-musl.tar.gz
 chmod +x portcli
 sudo mv portcli /usr/local/bin/portcli
 portcli --help
@@ -64,7 +64,7 @@ ldd ./portcli
 
 **Windows：**
 
-1. 从 Releases 页面下载 `portcli-v0.4.0-x86_64-pc-windows-msvc.zip`
+1. 从 Releases 页面下载 `portcli-v0.4.3-x86_64-pc-windows-msvc.zip`
 2. 解压 `portcli.exe` 到固定目录，例如 `C:\Tools\portcli\`
 3. 将该目录加入 `PATH`
 4. 打开 PowerShell 验证：
@@ -78,8 +78,8 @@ portcli --help
 需要 Rust 1.70 或更高版本。
 
 ```bash
-git clone https://github.com/HannisLee/PortHannis.git
-cd PortHannis
+git clone https://github.com/HannisLee/PortCLI.git
+cd PortCLI
 cargo build --release
 ```
 

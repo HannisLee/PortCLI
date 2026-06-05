@@ -1,6 +1,21 @@
 # 版本记录
 
-本文档记录 `portcli` 各版本的修改细节。版本号以 `Cargo.toml` 为准；未来涉及文件修改时，至少递增补丁版本号，例如 `0.4.3 -> 0.4.4`。中版本号和大版本号由项目维护者手动指定。
+本文档记录 `portcli` 各版本的修改细节。版本号以 `Cargo.toml` 为准；未来涉及文件修改时，至少递增补丁版本号，例如 `0.4.4 -> 0.4.5`。中版本号和大版本号由项目维护者手动指定。
+
+## 0.4.4
+
+本版本为仓库改名适配版本。
+
+### 仓库
+
+- 将本地 `origin` 远端更新为 `https://github.com/HannisLee/PortCLI`。
+- 将安装脚本默认仓库从 `HannisLee/PortHannis` 更新为 `HannisLee/PortCLI`。
+- 更新 README 中的 CI、raw install、release 下载和源码 clone 链接。
+
+### 版本
+
+- 将 `Cargo.toml` 中的版本从 `0.4.3` 提升到 `0.4.4`。
+- 同步更新 `Cargo.lock` 中 `portcli` 包版本。
 
 ## 0.4.3
 

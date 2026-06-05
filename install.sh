@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-REPO="${PORTCLI_REPO:-HannisLee/PortHannis}"
+REPO="${PORTCLI_REPO:-HannisLee/PortCLI}"
 VERSION="${PORTCLI_VERSION:-latest}"
 INSTALL_DIR="${PORTCLI_INSTALL_DIR:-/usr/local/bin}"
 BINARY_NAME="portcli"
