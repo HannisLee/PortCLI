@@ -9,7 +9,14 @@ use crate::logs;
 use crate::state;
 
 #[derive(Parser)]
-#[command(name = "portcli", version, about = "TCP port forwarding CLI tool")]
+#[command(
+    name = "portcli",
+    version,
+    about = "TCP port forwarding CLI tool",
+    long_about = "portcli manages TCP port forwarding rules and runs enabled rules through a background daemon. Rules are stored in a TOML config file, while status, stop, reload, and log commands talk to the local daemon.",
+    help_template = "{before-help}{name} {version}\n{about-with-newline}\n{usage-heading} {usage}\n\n{all-args}{after-help}",
+    after_help = "Examples:\n  portcli --version\n  portcli add web --source 127.0.0.1:9999 --target 127.0.0.1:8080\n  portcli enable web\n  portcli run\n  portcli status\n  portcli logs web -n 20\n\nRun 'portcli <COMMAND> --help' for command-specific examples."
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -18,36 +25,79 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// List all forwarding rules
+    #[command(
+        long_about = "List all configured forwarding rules. When the daemon is running, portcli also tries to show each rule's live runtime status.",
+        after_help = "Examples:\n  portcli list\n  portcli list        # shows configured rules and live status when daemon is running"
+    )]
     List,
 
     /// Add a new forwarding rule
+    #[command(
+        long_about = "Add a TCP forwarding rule. The rule name must be unique, and source/target must use host:port format. Newly added rules are disabled by default; run 'portcli enable <name>' before the daemon starts forwarding it.",
+        after_help = "Examples:\n  portcli add web --source 127.0.0.1:9999 --target 127.0.0.1:8080\n  portcli add lan-web --source 0.0.0.0:8080 --target 127.0.0.1:3000\n  portcli enable web"
+    )]
     Add {
+        /// Unique rule name
         name: String,
+        /// Local listen address in host:port format
         #[arg(long)]
         source: String,
+        /// Forward target address in host:port format
         #[arg(long)]
         target: String,
     },
 
     /// Modify an existing rule
+    #[command(
+        long_about = "Modify the source address, target address, or both for an existing rule. At least one of --source or --target is required. If the daemon is running, it is notified to reload automatically.",
+        after_help = "Examples:\n  portcli modify web --source 0.0.0.0:8081\n  portcli modify web --target 127.0.0.1:5173\n  portcli modify web --source 127.0.0.1:9999 --target 127.0.0.1:8080"
+    )]
     Modify {
+        /// Existing rule name
         name: String,
+        /// New local listen address in host:port format
         #[arg(long)]
         source: Option<String>,
+        /// New forward target address in host:port format
         #[arg(long)]
         target: Option<String>,
     },
 
     /// Remove a rule
-    Remove { name: String },
+    #[command(
+        long_about = "Remove a forwarding rule from the config file. If the daemon is running, it is notified to reload and the removed rule stops forwarding.",
+        after_help = "Example:\n  portcli remove web"
+    )]
+    Remove {
+        /// Existing rule name
+        name: String,
+    },
 
     /// Enable a rule
-    Enable { name: String },
+    #[command(
+        long_about = "Enable a configured rule. Enabled rules are started by the daemon. If the daemon is already running, it reloads automatically.",
+        after_help = "Examples:\n  portcli enable web\n  portcli status"
+    )]
+    Enable {
+        /// Existing rule name
+        name: String,
+    },
 
     /// Disable a rule
-    Disable { name: String },
+    #[command(
+        long_about = "Disable a configured rule. Disabled rules remain in the config file but are not started by the daemon. If the daemon is running, it reloads automatically.",
+        after_help = "Examples:\n  portcli disable web\n  portcli list"
+    )]
+    Disable {
+        /// Existing rule name
+        name: String,
+    },
 
     /// Start the daemon process
+    #[command(
+        long_about = "Start the forwarding daemon. By default, portcli starts a detached background daemon. Use --foreground when debugging startup, bind errors, or signal handling.",
+        after_help = "Examples:\n  portcli run\n  portcli run --foreground"
+    )]
     Run {
         /// Run in foreground (for debugging)
         #[arg(long)]
@@ -55,15 +105,31 @@ pub enum Commands {
     },
 
     /// Show daemon and rule status
+    #[command(
+        long_about = "Show whether the daemon is running, its PID, control address, and live rule statuses. Failed rules include the operating system error message.",
+        after_help = "Examples:\n  portcli status\n  portcli status      # useful after enable, disable, modify, or reload"
+    )]
     Status,
 
     /// Stop the daemon
+    #[command(
+        long_about = "Gracefully stop the daemon. All forwarding tasks are cancelled and the runtime state file is removed.",
+        after_help = "Example:\n  portcli stop"
+    )]
     Stop,
 
     /// Reload daemon configuration
+    #[command(
+        long_about = "Ask a running daemon to reload rules from the config file. CLI commands such as enable, disable, modify, and remove already trigger reload automatically; this command is mainly for manual config edits.",
+        after_help = "Examples:\n  portcli reload\n  portcli status"
+    )]
     Reload,
 
     /// View logs
+    #[command(
+        long_about = "View daemon logs or per-rule logs. Omit the rule name to read the daemon log. Use --follow to keep polling for new lines, --clear to truncate the selected log, or --dir to print the log directory.",
+        after_help = "Examples:\n  portcli logs\n  portcli logs web -n 50\n  portcli logs web -f\n  portcli logs --dir\n  portcli logs web --clear"
+    )]
     Logs {
         /// Rule name (omit for daemon log)
         name: Option<String>,
