@@ -11,8 +11,17 @@ fn get_project_dirs() -> Result<ProjectDirs> {
     ProjectDirs::from("", "", "portcli").context("could not determine project directories")
 }
 
+fn get_data_dir() -> Result<PathBuf> {
+    if let Ok(dir) = std::env::var("PORTCLI_DATA_DIR") {
+        if !dir.is_empty() {
+            return Ok(PathBuf::from(dir));
+        }
+    }
+    Ok(get_project_dirs()?.data_local_dir().to_path_buf())
+}
+
 pub fn get_log_dir() -> Result<PathBuf> {
-    Ok(get_project_dirs()?.data_local_dir().join("logs"))
+    Ok(get_data_dir()?.join("logs"))
 }
 
 pub fn get_daemon_log_path() -> Result<PathBuf> {

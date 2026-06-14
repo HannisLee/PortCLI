@@ -1,15 +1,15 @@
 # portcli
 
-`portcli` 是一个用 Rust 编写的跨平台 TCP 端口转发命令行工具。它用 CLI 管理转发规则，用后台守护进程执行转发；普通高位端口不需要 root 或管理员权限。
+`portcli` 是一个用 Rust 编写的跨平台 TCP/UDP 端口转发命令行工具。它用 CLI 管理转发规则，用后台守护进程执行转发；普通高位端口不需要 root 或管理员权限。
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![CI](https://github.com/HannisLee/PortCLI/actions/workflows/ci.yml/badge.svg)](https://github.com/HannisLee/PortCLI/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows-blue.svg)](#)
-[![Tests](https://img.shields.io/badge/tests-105%2F105%20passed-brightgreen.svg)](#)
+[![Tests](https://img.shields.io/badge/cargo%20tests-12%2F12%20passed-brightgreen.svg)](#)
 
 ## 功能特性
 
-- 通过 CLI 管理 TCP 转发规则：添加、修改、删除、启用、禁用
+- 通过 CLI 管理 TCP 和 UDP 转发规则：添加、修改、删除、启用、禁用
 - 后台守护进程持久运行，按配置启动所有已启用规则
 - 本机 TCP JSON 控制协议，用于 `status`、`stop`、`reload`
 - 每条规则独立日志，同时保留守护进程日志
@@ -96,19 +96,22 @@ cargo build --release
 # 1. 添加规则。新规则默认是禁用状态
 portcli add local-web --source 127.0.0.1:9999 --target 127.0.0.1:8080
 
-# 2. 启用规则
+# 2. 添加 UDP 规则时显式指定协议
+portcli add dns --protocol udp --source 127.0.0.1:5353 --target 1.1.1.1:53
+
+# 3. 启用规则
 portcli enable local-web
 
-# 3. 后台启动守护进程
+# 4. 后台启动守护进程
 portcli run
 
-# 4. 查看状态
+# 5. 查看状态
 portcli status
 
-# 5. 通过源端口访问目标服务
+# 6. 通过源端口访问目标服务
 curl http://127.0.0.1:9999
 
-# 6. 查看这条规则的日志
+# 7. 查看这条规则的日志
 portcli logs local-web -n 20
 ```
 
@@ -166,10 +169,12 @@ ssh -p 2222 user@127.0.0.1
 portcli add web --source 0.0.0.0:8080 --target 192.168.31.10:80
 portcli add api --source 0.0.0.0:9000 --target 192.168.31.11:9000
 portcli add ssh --source 127.0.0.1:2222 --target 192.168.31.20:22
+portcli add dns --protocol udp --source 127.0.0.1:5353 --target 1.1.1.1:53
 
 portcli enable web
 portcli enable api
 portcli enable ssh
+portcli enable dns
 portcli run
 
 portcli list
@@ -235,7 +240,7 @@ portcli reload
 
 如果守护进程没有运行，`reload` 会提示 `daemon is not running`。
 
-### 7. 完整连通性测试
+### 7. TCP 完整连通性测试
 
 Linux / WSL 下可以用 `nc` 做一个最小验证。
 
@@ -256,8 +261,27 @@ echo "hello" | nc 127.0.0.1 9999
 
 ```bash
 portcli logs test -n 10
-# [2026-05-27 12:00:10] INFO connection accepted name=test peer=127.0.0.1:53422
-# [2026-05-27 12:00:11] INFO connection closed name=test peer=127.0.0.1:53422 bytes_sent=6 bytes_received=0
+# [2026-05-27 12:00:10] INFO connection accepted protocol=tcp name=test peer=127.0.0.1:53422
+# [2026-05-27 12:00:11] INFO connection closed protocol=tcp name=test peer=127.0.0.1:53422 bytes_sent=6 bytes_received=0
+```
+
+### 8. UDP 转发示例
+
+下面示例把本机 `127.0.0.1:5353` 的 UDP DNS 查询转发到 `1.1.1.1:53`。
+
+```bash
+portcli add dns --protocol udp --source 127.0.0.1:5353 --target 1.1.1.1:53
+portcli enable dns
+portcli run
+dig @127.0.0.1 -p 5353 example.com
+```
+
+查看日志：
+
+```bash
+portcli logs dns -n 10
+# [2026-05-27 12:00:10] INFO rule started protocol=udp name=dns source=127.0.0.1:5353 target=1.1.1.1:53
+# [2026-05-27 12:00:10] INFO udp session opened name=dns peer=127.0.0.1:53422 target=1.1.1.1:53
 ```
 
 ## 命令参考
@@ -279,27 +303,29 @@ portcli logs --help
 
 ### `portcli list`
 
-列出所有规则，包含规则名、源地址、目标地址、启用状态和运行时状态。如果守护进程没有运行，运行时状态通常显示为 `unknown`。
+列出所有规则，包含规则名、协议、源地址、目标地址、启用状态和运行时状态。如果守护进程没有运行，运行时状态通常显示为 `unknown`。
 
 ```bash
 portcli list
 ```
 
-### `portcli add <name> --source <addr> --target <addr>`
+### `portcli add <name> --source <addr> --target <addr> [--protocol tcp|udp]`
 
-添加新规则。规则名必须唯一；地址必须是 `host:port` 格式；新规则默认 `enabled = false`。
+添加新规则。规则名必须唯一；地址必须是 `host:port` 格式；新规则默认 `enabled = false`。协议默认是 `tcp`。
 
 ```bash
 portcli add web --source 0.0.0.0:8080 --target 192.168.31.10:80
+portcli add dns --protocol udp --source 127.0.0.1:5353 --target 1.1.1.1:53
 ```
 
-### `portcli modify <name> [--source <addr>] [--target <addr>]`
+### `portcli modify <name> [--source <addr>] [--target <addr>] [--protocol tcp|udp]`
 
 修改已有规则。只会更新传入的字段。守护进程运行时会自动重新加载配置。
 
 ```bash
 portcli modify web --source 0.0.0.0:8081
 portcli modify web --target 192.168.31.20:80
+portcli modify dns --protocol tcp
 ```
 
 ### `portcli remove <name>`
@@ -390,14 +416,16 @@ portcli reload
 ```toml
 [[rules]]
 name = "web"
+protocol = "tcp"
 source = "0.0.0.0:8080"
 target = "192.168.31.10:80"
 enabled = true
 
 [[rules]]
-name = "ssh"
-source = "127.0.0.1:2222"
-target = "192.168.31.20:22"
+name = "dns"
+protocol = "udp"
+source = "127.0.0.1:5353"
+target = "1.1.1.1:53"
 enabled = false
 ```
 
@@ -406,6 +434,7 @@ enabled = false
 | 字段 | 说明 |
 | --- | --- |
 | `name` | 规则名称，必须唯一 |
+| `protocol` | 转发协议，`tcp` 或 `udp`；旧配置缺省时按 `tcp` 处理 |
 | `source` | 本机监听地址，格式为 `host:port` |
 | `target` | 转发目标地址，格式为 `host:port` |
 | `enabled` | 是否由守护进程启动这条规则 |
@@ -449,8 +478,8 @@ CLI (cli.rs)
 
 1. 规则存储在 TOML 配置文件中，CLI 和守护进程共享同一份配置。
 2. 守护进程启动后绑定一个随机的 `127.0.0.1` 控制端口，并把 PID、控制端口和 token 写入 `state.json`。
-3. 每条已启用规则会启动一个 TCP listener。
-4. 每个入站连接会创建一个异步任务，使用 `tokio::io::copy_bidirectional` 做双向转发。
+3. 每条已启用规则会按协议启动 TCP listener 或 UDP socket。
+4. TCP 每个入站连接会创建一个异步任务，使用 `tokio::io::copy_bidirectional` 做双向转发；UDP 按客户端地址维护伪会话，把目标端回包送回正确客户端。
 5. CLI 的 `status`、`stop`、`reload` 通过本机 JSON 控制协议发送给守护进程。
 6. 守护进程日志和规则日志分别写入数据目录，便于排障。
 
@@ -493,7 +522,7 @@ src/
 ├── cli.rs       # CLI 参数解析和命令处理
 ├── config.rs    # TOML 配置读写和地址校验
 ├── daemon.rs    # 守护进程生命周期、规则管理、优雅退出
-├── forward.rs   # TCP 转发逻辑
+├── forward.rs   # TCP 和 UDP 转发逻辑
 ├── control.rs   # 本机 TCP JSON 控制协议
 ├── state.rs     # 运行时状态文件
 ├── logs.rs      # 日志路径、追加、读取、跟踪、清空
@@ -502,20 +531,21 @@ src/
 
 ## 当前限制
 
-- 仅支持 TCP，不支持 UDP
 - 不提供 TLS 加密
 - 未集成 systemd 或 Windows Service
 - 没有图形界面
 - 手动编辑配置后需要执行 `portcli reload`
 - 控制协议只监听本机回环地址，并使用本地状态文件中的随机 token 认证
 - 日志跟踪采用 500ms 轮询
+- UDP 转发支持普通单播流量，不额外支持 broadcast/multicast 特性
 
 ## 测试结果
 
 | 平台 | 测试数 | 通过 |
 | --- | ---: | ---: |
-| Windows 11 (MSVC) | 53 | 53 |
-| Ubuntu 24.04 / WSL2 (GNU) | 52 | 52 |
+| Cargo 自动化测试 | 12 | 12 |
+| Windows 11 (UDP 前手工报告) | 53 | 53 |
+| Ubuntu 24.04 / WSL2 (UDP 前手工报告) | 52 | 52 |
 
 当前仓库保留了 Linux 验证脚本：[test_linux.sh](test_linux.sh) · [test_linux_forward.sh](test_linux_forward.sh)
 

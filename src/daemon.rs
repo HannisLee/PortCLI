@@ -259,6 +259,7 @@ async fn build_status_response(
 
         rules_status.push(json!({
             "name": managed.rule.name,
+            "protocol": managed.rule.protocol.to_string(),
             "source": managed.rule.source,
             "target": managed.rule.target,
             "enabled": managed.rule.enabled,

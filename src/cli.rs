@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-use crate::config::{self, Rule};
+use crate::config::{self, Protocol, Rule};
 use crate::control;
 use crate::daemon;
 use crate::error::PortCliError;
@@ -12,10 +12,10 @@ use crate::state;
 #[command(
     name = "portcli",
     version,
-    about = "TCP port forwarding CLI tool",
-    long_about = "portcli manages TCP port forwarding rules and runs enabled rules through a background daemon. Rules are stored in a TOML config file, while status, stop, reload, and log commands talk to the local daemon.",
+    about = "TCP/UDP port forwarding CLI tool",
+    long_about = "portcli manages TCP/UDP port forwarding rules and runs enabled rules through a background daemon. Rules are stored in a TOML config file, while status, stop, reload, and log commands talk to the local daemon.",
     help_template = "{before-help}{name} {version}\n{about-with-newline}\n{usage-heading} {usage}\n\n{all-args}{after-help}",
-    after_help = "Examples:\n  portcli --version\n  portcli add web --source 127.0.0.1:9999 --target 127.0.0.1:8080\n  portcli enable web\n  portcli run\n  portcli status\n  portcli logs web -n 20\n\nRun 'portcli <COMMAND> --help' for command-specific examples."
+    after_help = "Examples:\n  portcli --version\n  portcli add web --source 127.0.0.1:9999 --target 127.0.0.1:8080\n  portcli add dns --protocol udp --source 127.0.0.1:5353 --target 1.1.1.1:53\n  portcli enable web\n  portcli run\n  portcli status\n  portcli logs web -n 20\n\nRun 'portcli <COMMAND> --help' for command-specific examples."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -33,8 +33,8 @@ pub enum Commands {
 
     /// Add a new forwarding rule
     #[command(
-        long_about = "Add a TCP forwarding rule. The rule name must be unique, and source/target must use host:port format. Newly added rules are disabled by default; run 'portcli enable <name>' before the daemon starts forwarding it.",
-        after_help = "Examples:\n  portcli add web --source 127.0.0.1:9999 --target 127.0.0.1:8080\n  portcli add lan-web --source 0.0.0.0:8080 --target 127.0.0.1:3000\n  portcli enable web"
+        long_about = "Add a TCP or UDP forwarding rule. The rule name must be unique, and source/target must use host:port format. Newly added rules are disabled by default; run 'portcli enable <name>' before the daemon starts forwarding it. The protocol defaults to tcp.",
+        after_help = "Examples:\n  portcli add web --source 127.0.0.1:9999 --target 127.0.0.1:8080\n  portcli add dns --protocol udp --source 127.0.0.1:5353 --target 1.1.1.1:53\n  portcli add lan-web --source 0.0.0.0:8080 --target 127.0.0.1:3000\n  portcli enable web"
     )]
     Add {
         /// Unique rule name
@@ -45,12 +45,15 @@ pub enum Commands {
         /// Forward target address in host:port format
         #[arg(long)]
         target: String,
+        /// Forwarding protocol
+        #[arg(long, value_enum, default_value_t = Protocol::Tcp)]
+        protocol: Protocol,
     },
 
     /// Modify an existing rule
     #[command(
-        long_about = "Modify the source address, target address, or both for an existing rule. At least one of --source or --target is required. If the daemon is running, it is notified to reload automatically.",
-        after_help = "Examples:\n  portcli modify web --source 0.0.0.0:8081\n  portcli modify web --target 127.0.0.1:5173\n  portcli modify web --source 127.0.0.1:9999 --target 127.0.0.1:8080"
+        long_about = "Modify the protocol, source address, target address, or any combination for an existing rule. At least one of --protocol, --source, or --target is required. If the daemon is running, it is notified to reload automatically.",
+        after_help = "Examples:\n  portcli modify web --source 0.0.0.0:8081\n  portcli modify web --target 127.0.0.1:5173\n  portcli modify web --protocol udp\n  portcli modify web --source 127.0.0.1:9999 --target 127.0.0.1:8080"
     )]
     Modify {
         /// Existing rule name
@@ -61,6 +64,9 @@ pub enum Commands {
         /// New forward target address in host:port format
         #[arg(long)]
         target: Option<String>,
+        /// New forwarding protocol
+        #[arg(long, value_enum)]
+        protocol: Option<Protocol>,
     },
 
     /// Remove a rule
@@ -159,12 +165,14 @@ pub fn handle_command(cli: Cli) -> Result<()> {
             name,
             source,
             target,
-        } => cmd_add(&name, &source, &target),
+            protocol,
+        } => cmd_add(&name, &source, &target, protocol),
         Commands::Modify {
             name,
             source,
             target,
-        } => cmd_modify(&name, source, target),
+            protocol,
+        } => cmd_modify(&name, source, target, protocol),
         Commands::Remove { name } => cmd_remove(&name),
         Commands::Enable { name } => cmd_enable(&name),
         Commands::Disable { name } => cmd_disable(&name),
@@ -203,8 +211,8 @@ fn cmd_list() -> Result<()> {
     for rule in &config.rules {
         let runtime_status = get_rule_runtime_status(&runtime_rules, &rule.name);
         println!(
-            "  {:<20} {:<24} {:<24} {:<10} {:<12}",
-            rule.name, rule.source, rule.target, rule.enabled, runtime_status
+            "  {:<20} {:<8} {:<24} {:<24} {:<10} {:<12}",
+            rule.name, rule.protocol, rule.source, rule.target, rule.enabled, runtime_status
         );
     }
 
@@ -231,7 +239,7 @@ fn get_rule_runtime_status(runtime_rules: &Option<serde_json::Value>, name: &str
     }
 }
 
-fn cmd_add(name: &str, source: &str, target: &str) -> Result<()> {
+fn cmd_add(name: &str, source: &str, target: &str, protocol: Protocol) -> Result<()> {
     config::validate_address(source)?;
     config::validate_address(target)?;
 
@@ -243,6 +251,7 @@ fn cmd_add(name: &str, source: &str, target: &str) -> Result<()> {
 
     config.rules.push(Rule {
         name: name.to_string(),
+        protocol,
         source: source.to_string(),
         target: target.to_string(),
         enabled: false,
@@ -253,8 +262,13 @@ fn cmd_add(name: &str, source: &str, target: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_modify(name: &str, source: Option<String>, target: Option<String>) -> Result<()> {
-    if source.is_none() && target.is_none() {
+fn cmd_modify(
+    name: &str,
+    source: Option<String>,
+    target: Option<String>,
+    protocol: Option<Protocol>,
+) -> Result<()> {
+    if source.is_none() && target.is_none() && protocol.is_none() {
         return Err(PortCliError::NoChanges.into());
     }
 
@@ -278,6 +292,9 @@ fn cmd_modify(name: &str, source: Option<String>, target: Option<String>) -> Res
     }
     if let Some(t) = target {
         rule.target = t;
+    }
+    if let Some(p) = protocol {
+        rule.protocol = p;
     }
 
     config::save_config(&config)?;
@@ -365,8 +382,8 @@ fn cmd_status() -> Result<()> {
             println!("configured rules:");
             for rule in &config.rules {
                 println!(
-                    "  {:<20} {:<24} {:<24} enabled={}",
-                    rule.name, rule.source, rule.target, rule.enabled
+                    "  {:<20} {:<8} {:<24} {:<24} enabled={}",
+                    rule.name, rule.protocol, rule.source, rule.target, rule.enabled
                 );
             }
         }
@@ -392,6 +409,10 @@ fn cmd_status() -> Result<()> {
                     println!("rules:");
                     for rule in rules {
                         let name = rule.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        let protocol = rule
+                            .get("protocol")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("tcp");
                         let source = rule.get("source").and_then(|s| s.as_str()).unwrap_or("");
                         let target = rule.get("target").and_then(|t| t.as_str()).unwrap_or("");
                         let enabled = rule
@@ -406,6 +427,7 @@ fn cmd_status() -> Result<()> {
 
                         println!();
                         println!("- {}", name);
+                        println!("  protocol: {}", protocol);
                         println!("  source: {}", source);
                         println!("  target: {}", target);
                         println!("  enabled: {}", enabled);
@@ -505,4 +527,79 @@ fn cmd_logs(name: Option<&str>, lines: usize, follow: bool, clear: bool, dir: bo
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_defaults_to_tcp() {
+        let cli = Cli::try_parse_from([
+            "portcli",
+            "add",
+            "web",
+            "--source",
+            "127.0.0.1:8080",
+            "--target",
+            "127.0.0.1:8081",
+        ])
+        .unwrap();
+
+        match cli.command {
+            Commands::Add { protocol, .. } => assert_eq!(protocol, Protocol::Tcp),
+            _ => panic!("expected add command"),
+        }
+    }
+
+    #[test]
+    fn add_accepts_udp_protocol() {
+        let cli = Cli::try_parse_from([
+            "portcli",
+            "add",
+            "dns",
+            "--source",
+            "127.0.0.1:5353",
+            "--target",
+            "1.1.1.1:53",
+            "--protocol",
+            "udp",
+        ])
+        .unwrap();
+
+        match cli.command {
+            Commands::Add { protocol, .. } => assert_eq!(protocol, Protocol::Udp),
+            _ => panic!("expected add command"),
+        }
+    }
+
+    #[test]
+    fn modify_accepts_protocol_only() {
+        let cli = Cli::try_parse_from(["portcli", "modify", "dns", "--protocol", "udp"]).unwrap();
+
+        match cli.command {
+            Commands::Modify { protocol, .. } => assert_eq!(protocol, Some(Protocol::Udp)),
+            _ => panic!("expected modify command"),
+        }
+    }
+
+    #[test]
+    fn protocol_rejects_invalid_value() {
+        let result = Cli::try_parse_from([
+            "portcli",
+            "add",
+            "bad",
+            "--source",
+            "127.0.0.1:1",
+            "--target",
+            "127.0.0.1:2",
+            "--protocol",
+            "icmp",
+        ]);
+
+        match result {
+            Ok(_) => panic!("expected invalid protocol to fail"),
+            Err(err) => assert_eq!(err.kind(), clap::error::ErrorKind::InvalidValue),
+        }
+    }
 }

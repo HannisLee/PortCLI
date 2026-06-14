@@ -18,6 +18,11 @@ fn get_project_dirs() -> Result<ProjectDirs> {
 }
 
 pub fn get_state_dir() -> Result<PathBuf> {
+    if let Ok(dir) = std::env::var("PORTCLI_DATA_DIR") {
+        if !dir.is_empty() {
+            return Ok(PathBuf::from(dir));
+        }
+    }
     Ok(get_project_dirs()?.data_local_dir().to_path_buf())
 }
 
